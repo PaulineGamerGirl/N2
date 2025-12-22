@@ -1,5 +1,7 @@
 
 import { QuestPhase, Stats } from './types';
+// Fix: Added Variants type from framer-motion
+import { Variants } from 'framer-motion';
 
 export const INITIAL_STATS: Stats = {
   vocab: 4250,
@@ -27,7 +29,8 @@ export const MOTIVATIONAL_QUOTES = [
 ];
 
 // Framer Motion Variants
-export const containerVariants = {
+// Fix: Explicitly type containerVariants as Variants
+export const containerVariants: Variants = {
   hidden: { opacity: 0 },
   visible: { 
     opacity: 1,
@@ -38,7 +41,8 @@ export const containerVariants = {
   }
 };
 
-export const itemVariants = {
+// Fix: Explicitly type itemVariants as Variants to avoid string-to-AnimationGeneratorType mismatch
+export const itemVariants: Variants = {
   hidden: { y: 20, opacity: 0 },
   visible: { 
     y: 0, 

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { containerVariants, itemVariants } from '../constants';
@@ -7,7 +6,8 @@ import Countdown from './Countdown';
 import { useProgressStore, Keepsake } from '../store/progressStore';
 import { CAMPAIGN_PHASES } from '../data/campaign';
 import { BookOpen, Clock, PenTool, Award, Flower, X, Calendar, MessageCircle, Scroll, Tv, Database } from 'lucide-react';
-import { isWithinInterval, parseISO, format, eachDayOfInterval, endOfMonth, getDay, addMonths } from 'date-fns';
+// Fix: remove parseISO from imports
+import { isWithinInterval, format, eachDayOfInterval, endOfMonth, getDay, addMonths } from 'date-fns';
 import CompactCalendarWidget from './CompactCalendarWidget';
 import DataManagementModal from './DataManagementModal';
 
@@ -142,7 +142,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenLogModal }) => {
   const formattedDate = format(currentDate, "EEEE, MMMM do, yyyy");
   
   const currentPhase = CAMPAIGN_PHASES.find(phase => 
-    isWithinInterval(currentDate, { start: parseISO(phase.startDate), end: parseISO(phase.endDate) })
+    // Fix: use new Date() instead of parseISO
+    isWithinInterval(currentDate, { start: new Date(phase.startDate), end: new Date(phase.endDate) })
   );
 
   return (

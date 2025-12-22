@@ -9,9 +9,9 @@ import {
 import { useProgressStore } from '../store/progressStore';
 import { ActivityLogEntry, ActivityCategory } from '../types';
 import { 
-  format, addHours, startOfMonth, endOfMonth, 
+  format, addHours, endOfMonth, 
   eachDayOfInterval, isSameMonth, isSameDay, 
-  subDays, startOfWeek, endOfWeek, addMonths
+  endOfWeek, addMonths
 } from 'date-fns';
 import { containerVariants, itemVariants } from '../constants';
 
@@ -64,7 +64,8 @@ const ActivityLogTab: React.FC = () => {
   // --- STATE ---
   const [viewDate, setViewDate] = useState(new Date());
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [calendarMonth, setCalendarMonth] = useState(startOfMonth(new Date()));
+  // Fix: use new Date constructor to get start of current month as startOfMonth is missing
+  const [calendarMonth, setCalendarMonth] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
   
   // --- PERSISTENT ANKI TIMER STATE ---
   const [isAnkiTimerRunning, setIsAnkiTimerRunning] = useState(false);
@@ -148,7 +149,9 @@ const ActivityLogTab: React.FC = () => {
 
   const weeklyData = useMemo(() => {
     return Array.from({ length: 7 }).map((_, i) => {
-      const d = subDays(viewDate, 6 - i);
+      // Fix: replace subDays with native Date operations
+      const d = new Date(viewDate);
+      d.setDate(d.getDate() - (6 - i));
       const dStr = getVirtualDateString(d.getTime());
       const dayLogs = activityLogs.filter(log => getVirtualDateString(log.timestamp) === dStr);
       const totalMins = dayLogs.reduce((acc, curr) => acc + curr.durationMinutes, 0);
@@ -164,7 +167,10 @@ const ActivityLogTab: React.FC = () => {
   const maxWeeklyMins = Math.max(...weeklyData.map(d => d.minutes), 60);
 
   const calendarDays = useMemo(() => {
-    const start = startOfWeek(startOfMonth(calendarMonth));
+    // Fix: replace startOfMonth and startOfWeek with native Date operations to handle missing date-fns exports
+    const monthStart = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), 1);
+    const start = new Date(monthStart);
+    start.setDate(monthStart.getDate() - monthStart.getDay());
     const end = endOfWeek(endOfMonth(calendarMonth));
     return eachDayOfInterval({ start, end });
   }, [calendarMonth]);

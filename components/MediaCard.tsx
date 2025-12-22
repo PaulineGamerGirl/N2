@@ -1,8 +1,8 @@
-
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Star, Heart, Clock, BookOpen } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
+// Fix: remove parseISO from imports
+import { format } from 'date-fns';
 import { MediaStatus } from '../store/progressStore';
 
 export interface MediaItem {
@@ -109,7 +109,8 @@ const MediaCard: React.FC<MediaCardProps> = ({ item, onEdit }) => {
          <div className="mt-auto pt-3">
             {item.dateCompleted && (
               <p className="text-xs uppercase tracking-widest font-medium opacity-80 text-gray-500 font-coquette-body">
-                {format(parseISO(item.dateCompleted), 'MMM dd yyyy')}
+                {/* Fix: use new Date() instead of parseISO */}
+                {format(new Date(item.dateCompleted), 'MMM dd yyyy')}
               </p>
             )}
          </div>

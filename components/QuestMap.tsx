@@ -3,7 +3,8 @@ import { motion } from 'framer-motion';
 import { containerVariants } from '../constants';
 import { CAMPAIGN_PHASES, MOCK_CURRENT_DATE } from '../data/campaign';
 import { Feather, Key, Heart } from 'lucide-react';
-import { isAfter, isBefore, isWithinInterval, parseISO } from 'date-fns';
+// Fix: remove parseISO from imports
+import { isAfter, isBefore, isWithinInterval } from 'date-fns';
 
 const QuestMap: React.FC = () => {
   const activeCardRef = useRef<HTMLDivElement>(null);
@@ -39,8 +40,9 @@ const QuestMap: React.FC = () => {
         className="flex-1 flex items-center space-x-8 overflow-x-auto pb-8 scrollbar-hide snap-x snap-mandatory px-4"
       >
         {CAMPAIGN_PHASES.map((phase, index) => {
-          const startDate = parseISO(phase.startDate);
-          const endDate = parseISO(phase.endDate);
+          // Fix: use new Date() instead of parseISO
+          const startDate = new Date(phase.startDate);
+          const endDate = new Date(phase.endDate);
 
           const isCleared = isAfter(now, endDate);
           const isActive = isWithinInterval(now, { start: startDate, end: endDate });

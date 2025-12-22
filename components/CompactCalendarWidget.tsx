@@ -1,5 +1,7 @@
+
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+// Fix: Added Variants to the framer-motion import
+import { motion, AnimatePresence, Variants } from 'framer-motion';
 import { 
   format, endOfMonth, endOfWeek, 
   eachDayOfInterval, addMonths, isSameMonth, 
@@ -50,7 +52,8 @@ const CompactCalendarWidget: React.FC<CompactCalendarWidgetProps> = ({ onOpenYea
   };
 
   // 3D Page Flip Variants
-  const variants = {
+  // Fix: Explicitly type as Variants to prevent inferred string type for transition 'ease' properties
+  const variants: Variants = {
     enter: (dir: number) => ({
       rotateY: dir > 0 ? 90 : -90,
       opacity: 0,

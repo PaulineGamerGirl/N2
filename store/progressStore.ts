@@ -1,9 +1,9 @@
-
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { isYesterday, isToday, parseISO, format } from 'date-fns';
+import { isYesterday, isToday } from 'date-fns';
 import { parseAnkiExport, ParsedGrammarPoint } from '../utils/grammarParser';
 import { ActivityLogEntry, ActivityCategory } from '../types';
+import { seedData } from '../data/seedData';
 
 interface LogEntry {
   id: string;
@@ -55,6 +55,7 @@ interface ProgressState {
   // Actions
   addLog: (vocab: number, immersion: number, grammar: number) => void;
   resetProgress: () => void;
+  resetToSeed: () => void;
   toggleChapter: (id: string) => void;
   setModuleChapters: (ids: string[], isSelected: boolean) => void;
   setGrammarContext: (text: string) => void;
@@ -68,42 +69,23 @@ interface ProgressState {
   addActivityLog: (entry: Omit<ActivityLogEntry, 'id'>) => void;
 }
 
-const INITIAL_VOCAB_BASE = 2500;
-
-const generateInitialHistory = () => {
-  const dates: Record<string, boolean> = {};
-  const add = (start: string, end?: string) => {
-    if (!end) { dates[start] = true; return; }
-    let curr = new Date(start);
-    const last = new Date(end);
-    while (curr <= last) {
-      dates[curr.toISOString().split('T')[0]] = true;
-      curr.setDate(curr.getDate() + 1);
-    }
-  };
-  
-  add('2025-09-01', '2025-09-21');
-  add('2025-09-22', '2025-09-25');
-  return dates;
-};
-
-const INITIAL_HISTORY = generateInitialHistory();
-const INITIAL_VOCAB_SCORE = INITIAL_VOCAB_BASE + (Object.keys(INITIAL_HISTORY).length * 20);
+const STORAGE_KEY = 'nihongo-nexus-storage';
 
 export const useProgressStore = create<ProgressState>()(
   persist(
     (set, get) => ({
-      vocabCount: INITIAL_VOCAB_SCORE, 
-      immersionMinutes: 1260,
-      grammarPoints: 45,
-      streak: 16,
-      lastLogDate: new Date().toISOString(),
+      // Default Initial State
+      vocabCount: 2500, 
+      immersionMinutes: 0,
+      grammarPoints: 0,
+      streak: 0,
+      lastLogDate: null,
       logs: [],
       masteredChapters: [],
       grammarContext: '',
       grammarDatabase: {},
       dailyChecklist: {},
-      completedDates: INITIAL_HISTORY,
+      completedDates: {},
       keepsakes: [],
       activityLogs: [],
 
@@ -112,7 +94,7 @@ export const useProgressStore = create<ProgressState>()(
         const now = new Date();
         let newStreak = state.streak;
         if (state.lastLogDate) {
-          const lastDate = parseISO(state.lastLogDate);
+          const lastDate = new Date(state.lastLogDate);
           if (isYesterday(lastDate)) newStreak += 1;
           else if (!isToday(lastDate)) newStreak = 1; 
         } else {
@@ -195,8 +177,7 @@ export const useProgressStore = create<ProgressState>()(
         if (newCompletedDates[dateStr]) delete newCompletedDates[dateStr];
         else newCompletedDates[dateStr] = true;
         set({
-          completedDates: newCompletedDates,
-          vocabCount: INITIAL_VOCAB_BASE + (Object.keys(newCompletedDates).length * 20)
+          completedDates: newCompletedDates
         });
       },
       
@@ -213,25 +194,48 @@ export const useProgressStore = create<ProgressState>()(
       })),
 
       resetProgress: () => set({ 
-        vocabCount: INITIAL_VOCAB_SCORE, 
-        immersionMinutes: 1260, 
-        grammarPoints: 45, 
-        streak: 16, 
-        lastLogDate: new Date().toISOString(), 
+        vocabCount: 2500, 
+        immersionMinutes: 0, 
+        grammarPoints: 0, 
+        streak: 0, 
+        lastLogDate: null, 
         logs: [],
         masteredChapters: [],
         grammarContext: '',
         grammarDatabase: {},
         dailyChecklist: {},
-        completedDates: INITIAL_HISTORY,
+        completedDates: {},
         keepsakes: [],
         activityLogs: []
       }),
+
+      resetToSeed: () => {
+        // Updated to handle the nested structure of your actual backup data
+        const stateData = (seedData as any).data?.['nihongo-nexus-storage']?.state;
+        if (stateData) {
+          set(stateData);
+          // Ensure changes persist immediately
+          const fullState = { state: get(), version: (seedData as any).version || 7 };
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(fullState));
+        } else {
+          console.error("Seed data state not found. Please check data/seedData.ts structure.");
+        }
+      }
     }),
     {
-      name: 'nihongo-nexus-storage',
-      version: 7, // Incrementing version for MediaStatus update
+      name: STORAGE_KEY,
+      version: 7,
       storage: createJSONStorage(() => localStorage),
+      onRehydrateStorage: (state) => {
+        const hasStorage = !!localStorage.getItem(STORAGE_KEY);
+        if (!hasStorage) {
+          return (hydratedState) => {
+            if (hydratedState) {
+              hydratedState.resetToSeed();
+            }
+          };
+        }
+      }
     }
   )
 );
