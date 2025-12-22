@@ -1,0 +1,5 @@
+{
+  "name": "Nihongo Nexus",
+  "description": "A gamified JLPT mastery command center featuring quest maps, progress tracking, and an AI Sensei powered by Gemini.",
+  "requestFramePermissions": []
+}
