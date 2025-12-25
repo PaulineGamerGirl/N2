@@ -1,4 +1,5 @@
-import React, { useState, useRef } from 'react';
+
+import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Download, Upload, Database, Check, AlertCircle, FileJson, RefreshCw, Save, ShieldCheck, Sparkles, History } from 'lucide-react';
 import { useProgressStore } from '../store/progressStore';
@@ -30,6 +31,7 @@ const DataManagementModal: React.FC<DataManagementModalProps> = ({ isOpen, onClo
     try {
       const backupData: Record<string, any> = {};
       
+      // First, capture all secondary keys
       TARGET_KEYS.forEach(key => {
         const raw = localStorage.getItem(key);
         if (raw) {
@@ -40,6 +42,17 @@ const DataManagementModal: React.FC<DataManagementModalProps> = ({ isOpen, onClo
           }
         }
       });
+
+      // SYNC LOGIC: Ensure the main state numbers match the UI's accumulated timer time
+      if (backupData['nihongo-nexus-storage']?.state) {
+        const state = backupData['nihongo-nexus-storage'].state;
+        
+        // Update Immersion Minutes (accumulated seconds to minutes)
+        const immersionSecs = Number(localStorage.getItem('immersion_total_time') || 0);
+        state.immersionMinutes = Math.floor(immersionSecs / 60);
+
+        // Optional: you can sync other derived stats here if needed
+      }
 
       const payload = {
         meta: {
@@ -97,77 +110,24 @@ const DataManagementModal: React.FC<DataManagementModalProps> = ({ isOpen, onClo
 
     ['messenger_total_time', 'grammar_total_time', 'anki_total_time', 'immersion_total_time'].forEach(key => {
         if (incomingData[key]) {
-            const current = Number(localStorage.getItem(key) || 0);
-            const incoming = Number(incomingData[key]);
-            if (!isNaN(incoming) && incoming > current) {
-                localStorage.setItem(key, incoming.toString());
-                mergeCount++;
-            }
+            localStorage.setItem(key, String(incomingData[key]));
+            mergeCount++;
         }
     });
 
     if (incomingData['messenger_contacts']) {
-        const current = JSON.parse(localStorage.getItem('messenger_contacts') || '{}');
-        const merged = { ...current, ...incomingData['messenger_contacts'] };
-        localStorage.setItem('messenger_contacts', JSON.stringify(merged));
+        localStorage.setItem('messenger_contacts', JSON.stringify(incomingData['messenger_contacts']));
         mergeCount++;
     }
 
     if (incomingData['messenger_history']) {
-        const current = JSON.parse(localStorage.getItem('messenger_history') || '{}');
-        const incoming = incomingData['messenger_history'];
-        Object.keys(incoming).forEach(contactId => {
-            const currentMsgs = current[contactId] || [];
-            const incomingMsgs = incoming[contactId] || [];
-            const msgMap = new Map();
-            currentMsgs.forEach((m: any) => msgMap.set(m.id, m));
-            incomingMsgs.forEach((m: any) => msgMap.set(m.id, m));
-            current[contactId] = Array.from(msgMap.values()).sort((a: any, b: any) => 
-               (a.createdAt || 0) > (b.createdAt || 0) ? 1 : -1
-            );
-        });
-        localStorage.setItem('messenger_history', JSON.stringify(current));
+        localStorage.setItem('messenger_history', JSON.stringify(incomingData['messenger_history']));
         mergeCount++;
     }
 
     if (incomingData['nihongo-nexus-storage']) {
-        const rawCurrent = localStorage.getItem('nihongo-nexus-storage');
-        const currentObj = rawCurrent ? JSON.parse(rawCurrent) : { state: {} };
-        const incomingObj = incomingData['nihongo-nexus-storage'];
-        
-        const incomingState = typeof incomingObj === 'string' ? JSON.parse(incomingObj).state : incomingObj.state;
-        const currentState = currentObj.state || {};
-
-        if (incomingState) {
-            currentState.vocabCount = Math.max(currentState.vocabCount || 0, incomingState.vocabCount || 0);
-            currentState.immersionMinutes = Math.max(currentState.immersionMinutes || 0, incomingState.immersionMinutes || 0);
-            currentState.grammarPoints = Math.max(currentState.grammarPoints || 0, incomingState.grammarPoints || 0);
-            currentState.streak = Math.max(currentState.streak || 0, incomingState.streak || 0);
-
-            ['logs', 'keepsakes', 'activityLogs'].forEach(arrKey => {
-                const currentArr = currentState[arrKey] || [];
-                const incomingArr = incomingState[arrKey] || [];
-                const map = new Map();
-                currentArr.forEach((item: any) => { if(item.id) map.set(item.id, item); });
-                incomingArr.forEach((item: any) => { if(item.id) map.set(item.id, item); });
-                currentState[arrKey] = Array.from(map.values()).sort((a:any, b:any) => (b.timestamp || b.date) > (a.timestamp || a.date) ? 1 : -1);
-            });
-
-            const chapters = new Set([...(currentState.masteredChapters || []), ...(incomingState.masteredChapters || [])]);
-            currentState.masteredChapters = Array.from(chapters);
-
-            currentState.completedDates = { ...(currentState.completedDates || {}), ...(incomingState.completedDates || {}) };
-            currentState.dailyChecklist = { ...(currentState.dailyChecklist || {}), ...(incomingState.dailyChecklist || {}) };
-            currentState.grammarDatabase = { ...(currentState.grammarDatabase || {}), ...(incomingState.grammarDatabase || {}) };
-            
-            if ((incomingState.grammarContext || '').length > (currentState.grammarContext || '').length) {
-              currentState.grammarContext = incomingState.grammarContext;
-            }
-
-            currentObj.state = currentState;
-            localStorage.setItem('nihongo-nexus-storage', JSON.stringify(currentObj));
-            mergeCount++;
-        }
+        localStorage.setItem('nihongo-nexus-storage', JSON.stringify(incomingData['nihongo-nexus-storage']));
+        mergeCount++;
     }
 
     setStatus('success');
@@ -231,7 +191,6 @@ const DataManagementModal: React.FC<DataManagementModalProps> = ({ isOpen, onClo
                 </button>
              </div>
 
-             {/* SPECIAL RESET TO SEED BUTTON */}
              <button 
                 onClick={handleResetToSeed}
                 className="w-full group p-6 rounded-[32px] border-2 border-rose-100 bg-pink-50/20 hover:bg-rose-50 hover:border-rose-300 transition-all flex flex-col items-center gap-3 relative overflow-hidden"
@@ -246,22 +205,9 @@ const DataManagementModal: React.FC<DataManagementModalProps> = ({ isOpen, onClo
                    <p className="text-[10px] text-coquette-subtext mt-1 uppercase font-bold tracking-[0.2em]">Reset to Master Seeds</p>
                 </div>
              </button>
-
-             <div className="bg-[#fffdfd] p-5 rounded-[24px] border border-rose-50 shadow-inner">
-                <div className="flex items-start gap-4">
-                   <div className="p-2 bg-rose-50 rounded-lg text-rose-300 mt-0.5"><FileJson className="w-4 h-4" /></div>
-                   <div>
-                     <h4 className="text-xs font-black text-rose-400 uppercase tracking-widest mb-1.5">Persistence Logic</h4>
-                     <p className="text-[11px] text-coquette-subtext leading-relaxed font-coquette-body italic">
-                       New visitors automatically load Pauline's progress. Use the Archive button above if you wish to reset your local cache back to these original master stats.
-                     </p>
-                   </div>
-                </div>
-             </div>
           </div>
-
           <div className="p-5 bg-gray-50/50 border-t border-rose-50 text-center">
-             <span className="text-[9px] text-gray-400 font-black uppercase tracking-[0.3em]">Nihongo Nexus Protocol v2.1 (Seeded)</span>
+             <span className="text-[9px] text-gray-400 font-black uppercase tracking-[0.3em]">Nihongo Nexus Protocol v2.2 (Sync Fix)</span>
           </div>
         </motion.div>
       </div>

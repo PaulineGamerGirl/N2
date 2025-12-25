@@ -1,3 +1,4 @@
+
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { isYesterday, isToday } from 'date-fns';
@@ -7,9 +8,9 @@ import { seedData } from '../data/seedData';
 
 interface LogEntry {
   id: string;
-  date: string; // ISO string
+  date: string;
   vocab: number;
-  immersion: number; // minutes
+  immersion: number;
   grammar: number;
 }
 
@@ -22,11 +23,11 @@ export interface Keepsake {
   type: MediaType;
   status: MediaStatus;
   coverUrl: string;
-  rating: number; // 1-5
+  rating: number;
   caption: string;
-  durationOrVolumes: number; // Minutes for Anime/Game/Show, Count for Manga
-  dateAdded: string; // When the record was created
-  dateCompleted: string; // When the user actually finished it
+  durationOrVolumes: number;
+  dateAdded: string;
+  dateCompleted: string;
 }
 
 interface ProgressState {
@@ -36,23 +37,14 @@ interface ProgressState {
   streak: number;
   lastLogDate: string | null;
   logs: LogEntry[];
-  
-  // Syntax Archive State
   masteredChapters: string[];
   grammarContext: string;
   grammarDatabase: Record<string, ParsedGrammarPoint[]>;
-
-  // Coquette Calendar State
   dailyChecklist: Record<string, boolean>;
   completedDates: Record<string, boolean>;
-
-  // Keepsakes State
   keepsakes: Keepsake[];
-
-  // Activity Log State
   activityLogs: ActivityLogEntry[];
 
-  // Actions
   addLog: (vocab: number, immersion: number, grammar: number) => void;
   resetProgress: () => void;
   resetToSeed: () => void;
@@ -74,8 +66,7 @@ const STORAGE_KEY = 'nihongo-nexus-storage';
 export const useProgressStore = create<ProgressState>()(
   persist(
     (set, get) => ({
-      // Default Initial State
-      vocabCount: 2500, 
+      vocabCount: 2500,
       immersionMinutes: 0,
       grammarPoints: 0,
       streak: 0,
@@ -96,19 +87,15 @@ export const useProgressStore = create<ProgressState>()(
         if (state.lastLogDate) {
           const lastDate = new Date(state.lastLogDate);
           if (isYesterday(lastDate)) newStreak += 1;
-          else if (!isToday(lastDate)) newStreak = 1; 
+          else if (!isToday(lastDate)) newStreak = 1;
         } else {
-           newStreak = 1;
+          newStreak = 1;
         }
-
         const newLog: LogEntry = {
           id: crypto.randomUUID(),
           date: now.toISOString(),
-          vocab,
-          immersion,
-          grammar
+          vocab, immersion, grammar
         };
-
         set({
           vocabCount: state.vocabCount + vocab,
           immersionMinutes: state.immersionMinutes + immersion,
@@ -149,8 +136,8 @@ export const useProgressStore = create<ProgressState>()(
         const currentDb = get().grammarDatabase;
         const newDb = { ...currentDb };
         Object.entries(parsedData).forEach(([chapterId, points]) => {
-            newDb[chapterId] = points;
-            totalImported += points.length;
+          newDb[chapterId] = points;
+          totalImported += points.length;
         });
         set({ grammarDatabase: newDb, grammarContext: text });
         return totalImported;
@@ -172,54 +159,59 @@ export const useProgressStore = create<ProgressState>()(
 
       toggleDate: (dateStr: string) => {
         const state = get();
-        const currentDates = state.completedDates || {};
-        const newCompletedDates = { ...currentDates };
-        if (newCompletedDates[dateStr]) delete newCompletedDates[dateStr];
-        else newCompletedDates[dateStr] = true;
+        const currentDates = { ...(state.completedDates || {}) };
+        const isMarkingComplete = !currentDates[dateStr];
+        
+        if (isMarkingComplete) {
+          currentDates[dateStr] = true;
+        } else {
+          delete currentDates[dateStr];
+        }
+
         set({
-          completedDates: newCompletedDates
+          completedDates: currentDates,
+          vocabCount: Math.max(0, state.vocabCount + (isMarkingComplete ? 20 : -20))
         });
       },
-      
+
       addKeepsake: (item) => set(state => ({ keepsakes: [item, ...state.keepsakes] })),
       updateKeepsake: (id, updates) => set(state => ({
         keepsakes: state.keepsakes.map(item => item.id === id ? { ...item, ...updates } : item)
       })),
       removeKeepsake: (id) => set(state => ({ keepsakes: state.keepsakes.filter(item => item.id !== id) })),
-      
       addMinutesToKeepsake: (id, minutes) => set(state => ({
-        keepsakes: state.keepsakes.map(item => 
+        keepsakes: state.keepsakes.map(item =>
           item.id === id ? { ...item, durationOrVolumes: (item.durationOrVolumes || 0) + minutes } : item
         )
       })),
 
-      resetProgress: () => set({ 
-        vocabCount: 2500, 
-        immersionMinutes: 0, 
-        grammarPoints: 0, 
-        streak: 0, 
-        lastLogDate: null, 
-        logs: [],
-        masteredChapters: [],
-        grammarContext: '',
-        grammarDatabase: {},
-        dailyChecklist: {},
-        completedDates: {},
-        keepsakes: [],
-        activityLogs: []
+      resetProgress: () => set({
+        vocabCount: 2500, immersionMinutes: 0, grammarPoints: 0, streak: 0,
+        lastLogDate: null, logs: [], masteredChapters: [], grammarContext: '',
+        grammarDatabase: {}, dailyChecklist: {}, completedDates: {},
+        keepsakes: [], activityLogs: []
       }),
 
       resetToSeed: () => {
-        // Updated to handle the nested structure of your actual backup data
-        const stateData = (seedData as any).data?.['nihongo-nexus-storage']?.state;
+        const incomingData = (seedData as any).data;
+        if (!incomingData) return;
+
+        // Restore main store
+        const stateData = incomingData[STORAGE_KEY]?.state;
         if (stateData) {
           set(stateData);
-          // Ensure changes persist immediately
           const fullState = { state: get(), version: (seedData as any).version || 7 };
           localStorage.setItem(STORAGE_KEY, JSON.stringify(fullState));
-        } else {
-          console.error("Seed data state not found. Please check data/seedData.ts structure.");
         }
+
+        // Restore all secondary keys (history, timers, etc)
+        Object.keys(incomingData).forEach(key => {
+          if (key !== STORAGE_KEY) {
+            const val = incomingData[key];
+            const stringVal = typeof val === 'object' ? JSON.stringify(val) : String(val);
+            localStorage.setItem(key, stringVal);
+          }
+        });
       }
     }),
     {
@@ -230,9 +222,7 @@ export const useProgressStore = create<ProgressState>()(
         const hasStorage = !!localStorage.getItem(STORAGE_KEY);
         if (!hasStorage) {
           return (hydratedState) => {
-            if (hydratedState) {
-              hydratedState.resetToSeed();
-            }
+            if (hydratedState) hydratedState.resetToSeed();
           };
         }
       }

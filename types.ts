@@ -1,4 +1,6 @@
 
+import { ImmersionToken } from './types/immersionSchema';
+
 export interface ChatMessage {
   id: string;
   role: 'user' | 'model';
@@ -25,7 +27,7 @@ export interface QuestPhase {
   endDate: string;   // YYYY-MM-DD
 }
 
-export type View = 'dashboard' | 'questmap' | 'inventory' | 'syntax' | 'messenger' | 'activity';
+export type View = 'dashboard' | 'questmap' | 'inventory' | 'syntax' | 'messenger' | 'activity' | 'theater';
 
 export interface LogData {
   vocabAdded: number;
@@ -51,4 +53,23 @@ export interface ActivityLogEntry {
   category: ActivityCategory;
   durationMinutes: number;
   summary: string;
+}
+
+// Updated Immersion Theater Types to use the new Token Schema
+export interface DialogueLine {
+  id: string;
+  speaker: string;
+  japanese: ImmersionToken[];
+  english: ImmersionToken[];
+  timestampStart: number;
+  timestampEnd: number;
+  grammarNotes?: string[];
+}
+
+export interface ImmersionVideo {
+  id: string;
+  title: string;
+  videoUrl: string;
+  thumbnailUrl?: string;
+  dialogue: DialogueLine[];
 }
