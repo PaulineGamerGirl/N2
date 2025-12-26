@@ -55,7 +55,7 @@ const ImmersionFeed: React.FC<ImmersionFeedProps> = ({ isSidebarVisible, onToggl
   }, [activeSeriesId, activeEpisodeNumber, hasPlaylist, loadEpisodeMetadata]);
 
   return (
-    <div className={`h-screen w-full relative overflow-hidden bg-[#fffcfc]`}>
+    <div className={`h-[100dvh] w-full relative overflow-hidden bg-[#fffcfc]`}>
       
       {/* LIBRARY DRAWER */}
       <AnimatePresence>
@@ -104,7 +104,7 @@ const ImmersionFeed: React.FC<ImmersionFeedProps> = ({ isSidebarVisible, onToggl
                 <div 
                   ref={containerRef}
                   onScroll={handleScroll}
-                  className="h-screen overflow-y-auto snap-y snap-mandatory scroll-smooth scrollbar-hide"
+                  className="h-full overflow-y-auto snap-y snap-mandatory scroll-smooth scrollbar-hide"
                 >
                   {playlist.map((video, idx) => (
                     <ImmersionStage 

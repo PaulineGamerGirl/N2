@@ -3,7 +3,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>Nihongo Nexus</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -52,6 +52,9 @@
       body {
         background-color: #fff5f7; 
         overflow-x: hidden;
+        /* Prevent bounce scroll on iOS */
+        overscroll-behavior-y: none;
+        touch-action: manipulation;
       }
       ::-webkit-scrollbar {
         width: 8px;
@@ -88,6 +91,7 @@
   }
 }
 </script>
+<link rel="stylesheet" href="/index.css">
 </head>
   <body>
     <div id="root"></div>

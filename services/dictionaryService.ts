@@ -7,6 +7,12 @@ const FREQ_STORE = 'frequencies';
 const LIBRARY_STORE = 'library';
 const DB_VERSION = 2;
 
+export interface WordMeta {
+  rank: number;
+  badge: string;
+  jlpt: string;
+}
+
 class DictionaryService {
   private db: Promise<IDBPDatabase>;
 
@@ -26,24 +32,87 @@ class DictionaryService {
   // --- Frequency Logic ---
   async importJPDB(file: File): Promise<number> {
     const text = await file.text();
-    const data = JSON.parse(text);
+    let data;
+    
+    try {
+      data = JSON.parse(text);
+    } catch (e) {
+      console.error("Failed to parse dictionary JSON", e);
+      throw new Error("Invalid JSON file");
+    }
+
+    if (!Array.isArray(data)) {
+      throw new Error("Dictionary format incorrect: Expected an array.");
+    }
+
     const db = await this.db;
     const tx = db.transaction(FREQ_STORE, 'readwrite');
     const store = tx.objectStore(FREQ_STORE);
+    
     let count = 0;
+    
+    // Schema Handling:
+    // Case A (Simple): [ "Term", "freq", { "value": 123 } ]
+    // Case B (Complex): [ "Term", "freq", { "reading": "...", "frequency": { "value": 123 } } ]
+    
     for (const entry of data) {
       if (!Array.isArray(entry) || entry.length < 3) continue;
-      await store.put(entry[2], entry[0]);
-      count++;
+
+      const term = entry[0];
+      const metadata = entry[2];
+      let rank = 0;
+
+      if (typeof metadata === 'object' && metadata !== null) {
+        if (typeof metadata.value === 'number') {
+          // Case A
+          rank = metadata.value;
+        } else if (metadata.frequency && typeof metadata.frequency.value === 'number') {
+          // Case B
+          rank = metadata.frequency.value;
+        }
+      }
+
+      // Validation & Storage
+      if (term && typeof term === 'string' && rank > 0) {
+        await store.put(rank, term); 
+        count++;
+      }
     }
+
     await tx.done;
+    console.log(`[DictionaryService] Successfully imported ${count} frequency entries.`);
     return count;
   }
 
-  async getWordMeta(word: string): Promise<number | null> {
+  async getWordMeta(word: string): Promise<WordMeta | null> {
     const db = await this.db;
     const rank = await db.get(FREQ_STORE, word);
-    return rank !== undefined ? Number(rank) : null;
+    
+    if (rank === undefined || rank === null) return null;
+
+    const numRank = Number(rank);
+    let jlpt = 'Unknown';
+    let badge = '⚪ Unranked';
+
+    if (numRank <= 1500) {
+      jlpt = 'N5/N4';
+      badge = '🌟 Vital';
+    } else if (numRank <= 5000) {
+      jlpt = 'N3/N2';
+      badge = '🟢 Common';
+    } else if (numRank <= 15000) {
+      jlpt = 'N1';
+      badge = '🔵 Advanced';
+    } else {
+      jlpt = 'N1+';
+      badge = '🟣 Rare';
+    }
+
+    return {
+      rank: numRank,
+      badge,
+      jlpt
+    };
   }
 
   async isHydrated(): Promise<boolean> {

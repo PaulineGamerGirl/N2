@@ -18,7 +18,8 @@ import {
   Music,
   RotateCcw,
   Check,
-  Heart
+  Heart,
+  TrendingUp
 } from 'lucide-react';
 import { useImmersionStore } from '../../store/useImmersionStore';
 import { useProgressStore } from '../../store/progressStore';
@@ -86,82 +87,93 @@ const SenseiModal: React.FC<{
           initial={{ scale: 0.9, opacity: 0, y: 20 }} 
           animate={{ scale: 1, opacity: 1, y: 0 }} 
           exit={{ scale: 0.9, opacity: 0, y: 20 }}
-          className="relative w-full max-w-md bg-white rounded-[40px] shadow-2xl border border-rose-100 overflow-hidden flex flex-col"
+          className="relative w-full max-w-4xl bg-white rounded-[40px] shadow-2xl border border-rose-100 overflow-hidden flex flex-col"
         >
-          {isLoading ? (
-            <div className="p-16 flex flex-col items-center justify-center gap-6 text-center">
-              <Loader2 className="w-10 h-10 text-rose-300 animate-spin" />
+          {isLoading && !explanation ? (
+            <div className="p-20 flex flex-col items-center justify-center gap-6 text-center">
+              <Loader2 className="w-12 h-12 text-rose-300 animate-spin" />
               <div>
-                <p className="font-coquette-header text-xl text-gray-700 font-bold">Consulting the Sensei</p>
-                <p className="font-coquette-body italic text-rose-400 mt-1">Deep analysis in progress...</p>
+                <p className="font-coquette-rounded text-2xl text-gray-700 font-bold tracking-tight">Consulting the Sensei</p>
+                <p className="font-coquette-rounded text-rose-400 mt-2 font-medium">Analyzing sentence structure...</p>
               </div>
             </div>
           ) : explanation && (
             <>
               <div className="p-8 bg-rose-50/30 border-b border-rose-100 flex justify-between items-center">
-                <div className="flex items-center gap-4">
-                  <div className="p-3 bg-white rounded-2xl text-rose-400 shadow-sm">
-                    <BrainCircuit className="w-6 h-6" />
+                <div className="flex items-center gap-5">
+                  <div className="p-3.5 bg-white rounded-2xl text-rose-400 shadow-sm border border-rose-50">
+                    <BrainCircuit className="w-7 h-7" />
                   </div>
                   <div>
-                    <h3 className="font-coquette-header text-xl font-bold text-gray-800 leading-none">Sensei's Insight</h3>
-                    <p className="text-10px uppercase tracking-0.2em text-rose-400 font-bold mt-2">Grammatical Decomposition</p>
+                    <h3 className="font-coquette-rounded text-2xl font-bold text-gray-800 leading-none">Breakdown Details</h3>
+                    <p className="text-[11px] uppercase tracking-[0.25em] text-rose-400 font-bold mt-2">
+                        {isLoading ? 'Streaming Analysis...' : 'Grammatical Decomposition'}
+                    </p>
                   </div>
                 </div>
-                <button onClick={onClose} className="p-2 rounded-full hover:bg-white text-gray-400 hover:text-rose-400 transition-colors">
+                <button onClick={onClose} className="p-3 rounded-full hover:bg-white text-gray-400 hover:text-rose-400 transition-colors">
                   <X className="w-6 h-6" />
                 </button>
               </div>
 
-              <div className="p-8 space-y-6 overflow-y-auto max-h-[60vh] custom-scrollbar">
-                <div>
-                   <h2 className="text-4xl font-bold font-coquette-header text-coquette-text">{explanation.headword.text}</h2>
-                   <div className="flex items-center gap-2 mt-2">
-                      <span className="text-xs font-black text-rose-300 uppercase tracking-widest">{explanation.headword.romaji}</span>
-                      <span className="w-1 h-1 rounded-full bg-rose-200"></span>
-                      <span className="text-base font-medium text-gray-500 font-coquette-body italic">{explanation.headword.basicMeaning}</span>
-                   </div>
-                </div>
+              <div className="p-8 space-y-8 overflow-y-auto max-h-[60vh] custom-scrollbar text-left bg-[#fffcfc]">
+                {explanation.segments?.map((segment, index) => (
+                  <motion.div 
+                    key={index} 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className={`relative p-6 rounded-3xl transition-all border ${segment.isTarget ? 'bg-emerald-50/40 border-emerald-100 ring-2 ring-emerald-500/10 shadow-sm' : 'bg-white border-gray-100 shadow-sm'}`}
+                  >
+                    {segment.isTarget && (
+                      <div className="absolute -top-3 right-6 flex gap-2">
+                        {segment.jlptLevel && (
+                          <span className="px-3 py-1.5 bg-emerald-500 text-white text-[10px] font-bold uppercase tracking-widest rounded-full shadow-md">
+                            {segment.jlptLevel}
+                          </span>
+                        )}
+                        {segment.frequencyRank && (
+                          <span className="px-3 py-1.5 bg-white border border-emerald-100 text-emerald-600 text-[10px] font-bold uppercase tracking-widest rounded-full shadow-sm flex items-center gap-1.5">
+                            <TrendingUp className="w-3 h-3" /> {segment.frequencyRank}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    
+                    <div className="flex items-baseline gap-3 mb-4">
+                      <span className={`text-3xl font-bold font-coquette-rounded tracking-wide ${segment.isTarget ? 'text-emerald-700' : 'text-gray-800'}`}>
+                        {segment.japanese}
+                      </span>
+                      <span className="text-sm text-rose-400 font-coquette-rounded font-semibold tracking-wide">
+                        {segment.romaji}
+                      </span>
+                    </div>
 
-                <div className="bg-gray-50/50 rounded-3xl p-5 border border-gray-100">
-                   <div className="flex items-center gap-2 mb-4">
-                      <Sparkles className="w-3.5 h-3.5 text-coquette-gold" />
-                      <span className="text-10px font-black uppercase text-gray-400 tracking-0.2em">Morphology breakdown</span>
-                   </div>
-                   <p className="text-sm font-bold text-gray-700 mb-3">Base Pattern: <span className="text-rose-400">{explanation.analysis.baseForm}</span></p>
-                   <div className="flex flex-wrap gap-2 mb-4">
-                      {explanation.analysis.conjugationPath.map((step, i) => (
-                        <span key={i} className="text-10px px-3 py-1 bg-white border border-rose-50 rounded-full text-rose-400 font-bold shadow-sm">
-                           {step}
-                        </span>
-                      ))}
-                   </div>
-                   <p className="text-xs leading-relaxed text-gray-500 italic font-coquette-body">"{explanation.analysis.breakdown}"</p>
-                </div>
-
-                <div className="pt-2">
-                   <div className="flex items-center justify-between mb-3">
-                      <span className="text-10px font-black uppercase text-gray-400 tracking-0.2em">Context Nuance</span>
-                      <span className="text-10px font-black text-white bg-coquette-accent px-3 py-1 rounded-full">{explanation.nuance.jlptLevel}</span>
-                   </div>
-                   <p className="text-base leading-relaxed text-gray-600 font-coquette-body">
-                      {explanation.nuance.explanation}
-                   </p>
-                </div>
-
-                <div className="pt-6 border-t border-rose-50">
-                   <div className="flex items-center gap-2 mb-3">
-                      <Quote className="w-4 h-4 text-rose-200" />
-                      <span className="text-10px font-black uppercase text-rose-300 tracking-widest">Natural Vibe</span>
-                   </div>
-                   <p className="text-lg font-bold font-coquette-body text-gray-800 italic leading-relaxed">
-                      "{explanation.naturalTranslation}"
-                   </p>
-                </div>
+                    <ul className="space-y-2.5 pl-1">
+                      <li className="text-[15px] text-gray-600 font-coquette-rounded font-medium flex gap-3 leading-relaxed">
+                        <span className="text-rose-300 mt-1.5 min-w-[6px]">•</span>
+                        <span><strong>Meaning:</strong> {segment.meaning}</span>
+                      </li>
+                      <li className="text-[15px] text-gray-600 font-coquette-rounded font-medium flex gap-3 leading-relaxed">
+                        <span className="text-rose-300 mt-1.5 min-w-[6px]">•</span>
+                        <span><strong>Analysis:</strong> {segment.grammar_analysis}</span>
+                      </li>
+                    </ul>
+                  </motion.div>
+                ))}
               </div>
 
-              <div className="p-6 bg-gray-50/50 border-t border-rose-50 text-center">
-                 <button onClick={onClose} className="text-10px font-black uppercase tracking-0.4em text-gray-400 hover:text-rose-400 transition-colors">
+              <div className="p-8 bg-rose-50/30 border-t border-rose-100">
+                 <div className="flex items-center gap-2 mb-4">
+                    <Quote className="w-5 h-5 text-rose-300" />
+                    <span className="text-[11px] font-black uppercase text-rose-400 tracking-[0.3em]">Final Translation</span>
+                 </div>
+                 <p className="text-xl md:text-2xl font-bold font-coquette-body text-gray-700 italic leading-relaxed">
+                    "{explanation.naturalTranslation || '...'}"
+                 </p>
+              </div>
+
+              <div className="p-6 bg-gray-50/80 border-t border-gray-100 text-center">
+                 <button onClick={onClose} className="text-[11px] font-black uppercase tracking-[0.4em] text-gray-400 hover:text-rose-400 transition-colors">
                     Close Analysis
                  </button>
               </div>
@@ -273,9 +285,18 @@ const ImmersionStage: React.FC<ImmersionStageProps> = ({ video, isActive, index,
     if (!activeNode) return;
 
     const fullSentence = activeNode.japanese.map((t: any) => t.text).join('');
+    const groundTruthTranslation = activeNode.english ? activeNode.english.map((t: any) => t.text).join(' ') : "Translation unavailable";
+
     setIsExplaining(true);
+    setExplanation(null); // Reset
     try {
-      const data = await explainToken(fullSentence, fullSentence);
+      const data = await explainToken(
+        fullSentence, 
+        fullSentence, 
+        groundTruthTranslation, 
+        null,
+        (partialData) => setExplanation(partialData) // Stream update
+      );
       setExplanation(data);
     } catch (e) {
       console.error(e);

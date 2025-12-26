@@ -2,7 +2,7 @@
 export const seedData = {
   "meta": {
     "app": "nihongo-nexus",
-    "version": 2,
+    "version": 3,
     "timestamp": "2025-12-22T10:00:20.596Z",
     "deviceName": "Windows NT 10.0; Win64; x64"
   },
@@ -33,14 +33,14 @@ export const seedData = {
         },
         "keepsakes": [
           {
-            "id": "75757713-c184-4fef-9fcd-740a4208a223",
+            "id": "death-note-placeholder",
             "title": "Death Note",
             "type": "ANIME",
             "status": "ONGOING",
             "coverUrl": "https://i.pinimg.com/736x/f3/c5/26/f3c5262b088541744643cf1bc2ad75fb.jpg",
             "rating": 5,
-            "caption": "I am SEATED. The logic battles are absolutely peak!",
-            "durationOrVolumes": 83,
+            "caption": "i am SEATED ohmygod so many plot twist",
+            "durationOrVolumes": 455,
             "dateCompleted": "2025-12-22",
             "dateAdded": "2025-12-22",
             "showInTheater": true,
@@ -51,19 +51,19 @@ export const seedData = {
           {
             "timestamp": 1766394194775,
             "category": "IMMERSION",
-            "durationMinutes": 51,
-            "summary": "Immersed with Death Note for 51m",
+            "durationMinutes": 455,
+            "summary": "Immersed with Death Note for 455m",
             "id": "a7e135ee-6d94-4dac-b0dd-fd9c52437c9a"
           }
         ]
       },
-      "version": 7
+      "version": 8
     },
     "nihongo-nexus-immersion-v3": {
       "state": {
         "series": [
           {
-            "id": "75757713-c184-4fef-9fcd-740a4208a223",
+            "id": "death-note-placeholder",
             "title": "Death Note",
             "totalEpisodes": 37,
             "coverUrl": "https://i.pinimg.com/736x/f3/c5/26/f3c5262b088541744643cf1bc2ad75fb.jpg"

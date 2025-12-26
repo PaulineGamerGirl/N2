@@ -5,7 +5,7 @@ import { VideoAnalysis, ExplanationCard, DialogueNode, TokenType } from "../type
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 const CHUNK_SIZE = 300; 
-const ENRICH_BATCH_SIZE = 20; // Reduced for higher precision in mapping
+const ENRICH_BATCH_SIZE = 20; 
 const MAX_RETRIES = 2;
 
 interface TimeSegment {
@@ -111,10 +111,6 @@ const analyzeSegment = async (
   }
 };
 
-/**
- * Subtitle Enrichment Engine (v2.1: Semantic SNAP Alignment)
- * Robustly pairs Japanese source with English source even if timestamps drift.
- */
 export const enrichSubtitles = async (
   jpNodes: DialogueNode[], 
   enNodes?: DialogueNode[],
@@ -125,25 +121,11 @@ export const enrichSubtitles = async (
 
   const promptBase = `
     You are the Linguistic Alignment Heart of Nihongo Nexus.
-    
-    TASK: Parallel Snapping & Analysis.
-    You will receive a batch of Japanese lines and a 'Context Map' of possible English matches.
-    
-    RULES:
-    1. SNAP ALIGNMENT: Match each Japanese line to its CORRECT English translation from the context. Ignore slight timestamp differences; prioritize semantic meaning.
-    2. SYMMETRIC HIGHLIGHTING: 
-       - Identify shared concepts between the JP and EN lines.
-       - Assign them matching integer 'groupId' values (1, 2, 3...).
-       - If 'ノート' is ID 5, 'note' in English MUST also be ID 5.
-    3. TOKENIZATION: Split JP into CONTENT/GRAMMAR. Keep English natural but tokenized.
-    4. PRESERVATION: Do not invent new English. Use the provided maps.
+    TASK: Parallel Snapping & Analysis. Match each Japanese line to its CORRECT English translation from context.
   `;
 
   for (let i = 0; i < total; i += ENRICH_BATCH_SIZE) {
     const jpBatch = jpNodes.slice(i, i + ENRICH_BATCH_SIZE);
-    
-    // Create a context window of English lines for the AI to "look ahead/behind"
-    // This handles the 5-second drift mentioned by the user.
     const windowStart = Math.max(0, i - 10);
     const windowEnd = Math.min(enNodes?.length || 0, i + ENRICH_BATCH_SIZE + 10);
     const enContext = enNodes?.slice(windowStart, windowEnd).map(n => ({
@@ -244,9 +226,41 @@ export const analyzeImmersionMedia = async (base64Data: string, mimeType: string
   };
 };
 
-export const explainToken = async (contextSentence: string, targetPhrase: string): Promise<ExplanationCard> => {
-  const prompt = `Sensei breakdown for context "${contextSentence}" and target "${targetPhrase}".`;
-  const response = await ai.models.generateContent({
+/**
+ * Streaming Sentence Explainer (v3.3)
+ * Optimized for Japanese text in analysis and deep conjugation focus.
+ */
+export const explainToken = async (
+  fullSentence: string, 
+  targetPhrase: string, 
+  groundTruthTranslation: string,
+  localRank?: number | null,
+  onUpdate?: (partial: ExplanationCard) => void
+): Promise<ExplanationCard> => {
+  const prompt = `
+    You are a linguistic expert and Japanese language teacher. 
+    Your task is to deconstruct Japanese sentences into a specific "Meaning → Analysis" format.
+
+    SENTENCE: "${fullSentence}"
+    TARGET PHRASE: "${targetPhrase}"
+    CONTEXT TRANSLATION: "${groundTruthTranslation}"
+
+    Follow these rules strictly:
+
+    1. **Part-by-Part Breakdown**: Divide the sentence into logical grammatical chunks.
+       For each chunk, provide:
+       - **Meaning**: A concise English definition.
+       - **Analysis**: A detailed technical explanation of the grammar. 
+         - **CRITICAL RULE 1**: Use **JAPANESE CHARACTERS (Kanji/Kana)** for all Japanese terms in your explanation. Do NOT use Romaji within the analysis text (e.g., write "食べる", not "taberu").
+         - **CRITICAL RULE 2**: If there is a conjugation, explicitly state the form (e.g., Causative, Passive, Volitional) and **explain exactly what nuance** that form adds to the word (e.g., "The causative form indicates making or letting someone do X").
+
+    2. **Simple Sentence Explanation**:
+       - **Natural Translation**: A natural English translation of the full sentence.
+       
+    OUTPUT FORMAT: Return strict JSON.
+  `;
+
+  const responseStream = await ai.models.generateContentStream({
     model: 'gemini-3-flash-preview',
     contents: prompt,
     config: {
@@ -254,14 +268,58 @@ export const explainToken = async (contextSentence: string, targetPhrase: string
       responseSchema: {
         type: Type.OBJECT,
         properties: {
-          headword: { type: Type.OBJECT, properties: { text: { type: Type.STRING }, romaji: { type: Type.STRING }, basicMeaning: { type: Type.STRING } } },
-          analysis: { type: Type.OBJECT, properties: { baseForm: { type: Type.STRING }, conjugationPath: { type: Type.ARRAY, items: { type: Type.STRING } }, breakdown: { type: Type.STRING } } },
-          nuance: { type: Type.OBJECT, properties: { jlptLevel: { type: Type.STRING }, explanation: { type: Type.STRING } } },
+          segments: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                japanese: { type: Type.STRING },
+                romaji: { type: Type.STRING },
+                meaning: { type: Type.STRING },
+                grammar_analysis: { type: Type.STRING },
+                isTarget: { type: Type.BOOLEAN, description: "True if this segment contains or matches the target phrase" },
+              },
+              required: ["japanese", "romaji", "meaning", "grammar_analysis", "isTarget"]
+            }
+          },
           naturalTranslation: { type: Type.STRING }
-        }
+        },
+        required: ["segments", "naturalTranslation"]
       }
     }
   });
-  if (response.text) return JSON.parse(response.text) as ExplanationCard;
-  throw new Error("Sensei failed");
+
+  let accumulatedText = '';
+  
+  for await (const chunk of responseStream) {
+    accumulatedText += chunk.text;
+    
+    if (onUpdate) {
+      const clean = accumulatedText.replace(/```json/g, '').replace(/```/g, '').trim();
+      const possibleFixes = [
+        clean,
+        clean + ']}',
+        clean + '"]}',
+        clean + '"}]}'
+      ];
+      
+      for (const fix of possibleFixes) {
+        try {
+          const parsed = JSON.parse(fix);
+          if (parsed.segments && Array.isArray(parsed.segments)) {
+            onUpdate(parsed as ExplanationCard);
+            break; 
+          }
+        } catch (e) {
+          // Ignore
+        }
+      }
+    }
+  }
+
+  const finalText = accumulatedText.replace(/```json/g, '').replace(/```/g, '').trim();
+  const finalJson = JSON.parse(finalText) as ExplanationCard;
+  
+  if (onUpdate) onUpdate(finalJson);
+  return finalJson;
 };

@@ -67,7 +67,14 @@ interface ImmersionState {
 export const useImmersionStore = create<ImmersionState>()(
   persist(
     (set, get) => ({
-      series: [],
+      series: [
+        {
+          id: "death-note-placeholder",
+          title: "Death Note",
+          totalEpisodes: 37,
+          coverUrl: "https://i.pinimg.com/736x/f3/c5/26/f3c5262b088541744643cf1bc2ad75fb.jpg"
+        }
+      ],
       activeSeriesId: null,
       activeEpisodeNumber: null,
       metadataHydratedIds: new Set(),

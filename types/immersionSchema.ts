@@ -44,25 +44,22 @@ export interface EpisodeMetadata {
   seriesId: string;
   episodeNumber: number;
   analysis: VideoAnalysis;
-  subtitleOffset?: number; // Added to persist timing adjustments
+  subtitleOffset?: number;
+}
+
+export interface BreakdownSegment {
+  japanese: string;
+  romaji: string;
+  meaning: string;
+  grammar_analysis: string;
+  isTarget: boolean; // True if this segment contains the word the user highlighted
+  jlptLevel?: string; // Optional, can be derived or passed if needed
+  frequencyRank?: string; // Optional
 }
 
 export interface ExplanationCard {
-  headword: {
-    text: string;
-    romaji: string;
-    basicMeaning: string;
-  };
-  analysis: {
-    baseForm: string;
-    conjugationPath: string[];
-    breakdown: string;
-  };
-  nuance: {
-    jlptLevel: string;
-    explanation: string;
-  };
-  naturalTranslation: string;
+  segments: BreakdownSegment[];
+  naturalTranslation: string; 
 }
 
 export interface MinedCard {

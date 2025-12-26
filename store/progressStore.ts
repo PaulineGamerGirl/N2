@@ -78,18 +78,43 @@ export const useProgressStore = create<ProgressState>()(
     (set, get) => ({
       baseVocab: 2500,
       manualVocabCount: 1480, // Set to 1480 so Baseline(2500) + Manual(1480) = 3980
-      immersionMinutes: 0,
-      grammarPoints: 0,
-      streak: 0,
+      immersionMinutes: 455,
+      grammarPoints: 45,
+      streak: 16,
       lastLogDate: null,
       logs: [],
       masteredChapters: [],
       grammarContext: '',
       grammarDatabase: {},
       dailyChecklist: {},
-      completedDates: {},
-      keepsakes: [],
-      activityLogs: [],
+      completedDates: {
+        "2025-12-22": true
+      },
+      keepsakes: [
+        {
+          id: "death-note-placeholder",
+          title: "Death Note",
+          type: "ANIME",
+          status: "ONGOING",
+          coverUrl: "https://i.pinimg.com/736x/f3/c5/26/f3c5262b088541744643cf1bc2ad75fb.jpg",
+          rating: 5,
+          caption: "i am SEATED ohmygod so many plot twist",
+          durationOrVolumes: 455,
+          dateAdded: "2025-12-22",
+          dateCompleted: "2025-12-22",
+          showInTheater: true,
+          totalEpisodes: 37
+        }
+      ],
+      activityLogs: [
+        {
+          timestamp: 1766394194775,
+          category: "IMMERSION",
+          durationMinutes: 455,
+          summary: "Immersed with Death Note for 455m",
+          id: "a7e135ee-6d94-4dac-b0dd-fd9c52437c9a"
+        }
+      ],
       currentSessionStartTime: null,
 
       addLog: (vocab, immersion, grammar) => {
@@ -235,7 +260,7 @@ export const useProgressStore = create<ProgressState>()(
         const stateData = incomingData[STORAGE_KEY]?.state;
         if (stateData) {
           set(stateData);
-          const fullState = { state: get(), version: (seedData as any).version || 7 };
+          const fullState = { state: get(), version: (seedData as any).version || 8 };
           localStorage.setItem(STORAGE_KEY, JSON.stringify(fullState));
         }
         Object.keys(incomingData).forEach(key => {
@@ -249,7 +274,7 @@ export const useProgressStore = create<ProgressState>()(
     }),
     {
       name: STORAGE_KEY,
-      version: 7,
+      version: 8,
       storage: createJSONStorage(() => localStorage)
     }
   )
