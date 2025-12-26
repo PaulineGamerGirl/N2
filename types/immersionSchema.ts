@@ -9,43 +9,42 @@ export enum TokenType {
 }
 
 export interface ImmersionToken {
-  /** The original text snippet */
   text: string;
-  /** Reading for Japanese tokens */
   romaji?: string;
-  /** Categorization for styling (e.g. solid vs translucent) */
+  baseForm?: string;
   type: TokenType;
-  /** 
-   * The "Magic Link". 
-   * Tokens in JP and EN with the same groupId represent the same concept.
-   */
   groupId: number;
 }
 
 export interface DialogueNode {
-  /** Unique ID for referencing/scrolling */
   id: string;
-  /** Start time in the video (seconds) */
   timestampStart: number;
-  /** End time in the video (seconds) */
   timestampEnd: number;
-  /** Character name */
   speaker: string;
-  /** Tokenized Japanese sentence */
   japanese: ImmersionToken[];
-  /** Tokenized English translation */
   english: ImmersionToken[];
-  /** Scribe's notes on tricky nuances within this specific node */
   grammarNotes: string[];
 }
 
 export interface VideoAnalysis {
-  /** Linked internal video ID */
   videoId: string;
-  /** Human readable title */
   title: string;
-  /** Array of synchronized dialogue events */
   nodes: DialogueNode[];
+}
+
+export interface Series {
+  id: string;
+  title: string;
+  totalEpisodes: number;
+  coverUrl?: string;
+  lastWatchedEpisode?: number;
+}
+
+export interface EpisodeMetadata {
+  seriesId: string;
+  episodeNumber: number;
+  analysis: VideoAnalysis;
+  subtitleOffset?: number; // Added to persist timing adjustments
 }
 
 export interface ExplanationCard {
@@ -59,13 +58,21 @@ export interface ExplanationCard {
     conjugationPath: string[];
     breakdown: string;
   };
-  particle?: {
-    text: string;
-    function: string;
-  };
   nuance: {
     jlptLevel: string;
     explanation: string;
   };
   naturalTranslation: string;
+}
+
+export interface MinedCard {
+  id: string;
+  sourceTitle: string; 
+  front: string; 
+  back: string;  
+  translation: string; 
+  fullTranslation: string; 
+  image: string; 
+  audio: string; 
+  timestamp: number;
 }

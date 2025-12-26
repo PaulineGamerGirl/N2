@@ -14,10 +14,13 @@ import {
   Volume2,
   VolumeX,
   Clapperboard,
-  PanelLeftClose
+  PanelLeftClose,
+  Tv,
+  Library
 } from 'lucide-react';
 import { View } from '../types';
 import { SIDEBAR_VIDEOS } from '../constants';
+import { useImmersionStore } from '../store/useImmersionStore';
 
 interface SidebarProps {
   currentView: View;
@@ -67,22 +70,47 @@ const SidebarVideoWidget: React.FC = () => {
 };
 
 const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, onSummonSensei, isHidden = false, onToggleHide }) => {
+  const { setViewMode, viewMode, setLibraryOpen, isLibraryOpen } = useImmersionStore();
+  
   const navItems = [
     { id: 'dashboard', label: 'My Journal', icon: Feather },
     { id: 'questmap', label: 'Journey Map', icon: Map },
-    { id: 'theater', label: 'Theater', icon: Clapperboard },
+    { id: 'theater', label: 'Theater', icon: Clapperboard, hasExtras: true },
     { id: 'syntax', label: 'Grammar Notes', icon: Scroll },
     { id: 'activity', label: 'Activity Log', icon: Activity },
     { id: 'inventory', label: 'Keepsakes', icon: Sparkles },
     { id: 'messenger', label: 'Messenger', icon: MessageCircleHeart },
   ];
 
+  const handleNavClick = (id: string) => {
+    if (id === 'theater') {
+      setViewMode('standard');
+      setLibraryOpen(false);
+    }
+    onViewChange(id as View);
+  };
+
+  const handleToggleCinemaMode = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setViewMode('cinema');
+    setLibraryOpen(false);
+    onViewChange('theater');
+  };
+
+  const handleToggleLibrary = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setLibraryOpen(!isLibraryOpen);
+    onViewChange('theater');
+  };
+
   return (
     <motion.aside 
       initial={false}
       animate={{ x: isHidden ? '-100%' : 0 }}
       transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-      className="w-20 lg:w-64 h-screen flex flex-col fixed left-0 top-0 z-[60] bg-[#fffcfc] border-r-4 border-double border-coquette-gold/30 shadow-xl"
+      className="w-20 lg:w-64 h-screen flex flex-col fixed left-0 top-0 z-[120] bg-[#fffcfc] border-r-4 border-double border-coquette-gold/30 shadow-xl"
     >
       <div className="h-[60px] px-4 lg:px-6 flex items-center justify-between border-b border-coquette-border shrink-0">
          <div className="flex items-center space-x-2 overflow-hidden flex-1">
@@ -103,19 +131,57 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, onSummonSe
       <nav className="flex-1 py-6 flex flex-col gap-2 px-3">
         {navItems.map((item) => {
           const isActive = currentView === item.id;
+          const isCinema = isActive && item.id === 'theater' && viewMode === 'cinema';
+          const isLibActive = isActive && item.id === 'theater' && isLibraryOpen;
+          
           return (
-            <div key={item.id} className="relative group">
-              <button
-                onClick={() => onViewChange(item.id as View)}
-                className={`w-full flex items-center space-x-4 p-3 rounded-r-full transition-all duration-300 relative overflow-hidden font-coquette-body
+            <div key={item.id} className="relative">
+              <div
+                className={`w-full flex items-center p-0.5 pr-2 rounded-r-full transition-all duration-300 relative overflow-hidden group
                   ${isActive 
-                    ? 'bg-coquette-accent/20 text-coquette-text border-l-4 border-coquette-accent' 
-                    : 'text-coquette-subtext hover:bg-coquette-bg hover:text-coquette-text hover:pl-5'}
+                    ? 'bg-coquette-accent/20 border-l-4 border-coquette-accent' 
+                    : 'hover:bg-coquette-bg'}
                 `}
               >
-                <item.icon className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-coquette-accent fill-coquette-accent/20' : 'group-hover:text-coquette-gold'}`} />
-                <span className="hidden lg:block text-lg truncate flex-1 text-left">{item.label}</span>
-              </button>
+                <button
+                  onClick={() => handleNavClick(item.id)}
+                  className={`flex-1 flex items-center space-x-4 p-2.5 transition-all text-left font-coquette-body
+                    ${isActive ? 'text-coquette-text' : 'text-coquette-subtext hover:text-coquette-text'}
+                  `}
+                >
+                  <item.icon className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-coquette-accent fill-coquette-accent/20' : 'group-hover:text-coquette-gold'}`} />
+                  <span className="hidden lg:block text-lg truncate">{item.label}</span>
+                </button>
+                
+                {item.hasExtras && (
+                  <div className="hidden lg:flex items-center gap-1">
+                    <motion.button 
+                      onClick={handleToggleLibrary}
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.9 }}
+                      className={`
+                        flex items-center justify-center w-8 h-8 rounded-xl transition-all duration-300 flex-shrink-0
+                        ${isLibActive ? 'bg-rose-500 text-white shadow-lg' : 'bg-rose-100 text-rose-400 hover:bg-rose-200'}
+                      `}
+                      title="Series Library"
+                    >
+                      <Library size={16} />
+                    </motion.button>
+                    <motion.button 
+                      onClick={handleToggleCinemaMode}
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.9 }}
+                      className={`
+                        flex items-center justify-center w-8 h-8 rounded-xl transition-all duration-300 flex-shrink-0
+                        ${isCinema ? 'bg-indigo-500 text-white shadow-lg' : 'bg-indigo-100 text-indigo-400 hover:bg-indigo-200'}
+                      `}
+                      title="Anime Mode"
+                    >
+                      <Tv size={16} />
+                    </motion.button>
+                  </div>
+                )}
+              </div>
             </div>
           );
         })}

@@ -28,10 +28,16 @@ export interface Keepsake {
   durationOrVolumes: number;
   dateAdded: string;
   dateCompleted: string;
+  showInTheater?: boolean;
+  totalEpisodes?: number;
 }
 
 interface ProgressState {
-  vocabCount: number;
+  // --- VOCAB ENGINE V2 ---
+  baseVocab: number;       // Fixed Baseline (2500)
+  manualVocabCount: number; // Words from logs/legacy (1480)
+  // -----------------------
+  
   immersionMinutes: number;
   grammarPoints: number;
   streak: number;
@@ -44,6 +50,8 @@ interface ProgressState {
   completedDates: Record<string, boolean>;
   keepsakes: Keepsake[];
   activityLogs: ActivityLogEntry[];
+  
+  currentSessionStartTime: number | null;
 
   addLog: (vocab: number, immersion: number, grammar: number) => void;
   resetProgress: () => void;
@@ -59,6 +67,8 @@ interface ProgressState {
   removeKeepsake: (id: string) => void;
   addMinutesToKeepsake: (id: string, minutes: number) => void;
   addActivityLog: (entry: Omit<ActivityLogEntry, 'id'>) => void;
+  startImmersionSession: () => void;
+  endImmersionSession: (summary: string) => number;
 }
 
 const STORAGE_KEY = 'nihongo-nexus-storage';
@@ -66,7 +76,8 @@ const STORAGE_KEY = 'nihongo-nexus-storage';
 export const useProgressStore = create<ProgressState>()(
   persist(
     (set, get) => ({
-      vocabCount: 2500,
+      baseVocab: 2500,
+      manualVocabCount: 1480, // Set to 1480 so Baseline(2500) + Manual(1480) = 3980
       immersionMinutes: 0,
       grammarPoints: 0,
       streak: 0,
@@ -79,6 +90,7 @@ export const useProgressStore = create<ProgressState>()(
       completedDates: {},
       keepsakes: [],
       activityLogs: [],
+      currentSessionStartTime: null,
 
       addLog: (vocab, immersion, grammar) => {
         const state = get();
@@ -97,7 +109,7 @@ export const useProgressStore = create<ProgressState>()(
           vocab, immersion, grammar
         };
         set({
-          vocabCount: state.vocabCount + vocab,
+          manualVocabCount: state.manualVocabCount + vocab,
           immersionMinutes: state.immersionMinutes + immersion,
           grammarPoints: state.grammarPoints + grammar,
           streak: newStreak,
@@ -109,6 +121,34 @@ export const useProgressStore = create<ProgressState>()(
       addActivityLog: (entry) => set(state => ({
         activityLogs: [{ ...entry, id: crypto.randomUUID() }, ...state.activityLogs]
       })),
+
+      startImmersionSession: () => set({ currentSessionStartTime: Date.now() }),
+      
+      endImmersionSession: (summary) => {
+        const { currentSessionStartTime } = get();
+        if (!currentSessionStartTime) return 0;
+        
+        const now = Date.now();
+        const diffMs = now - currentSessionStartTime;
+        const minutes = Math.floor(diffMs / 60000);
+        
+        if (minutes > 0) {
+          get().addActivityLog({
+            timestamp: now,
+            category: 'IMMERSION',
+            durationMinutes: minutes,
+            summary: `${summary} (Started at ${new Date(currentSessionStartTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})`
+          });
+          set(state => ({
+            immersionMinutes: state.immersionMinutes + minutes,
+            currentSessionStartTime: null
+          }));
+        } else {
+          set({ currentSessionStartTime: null });
+        }
+        
+        return minutes;
+      },
 
       toggleChapter: (id) => {
         const state = get();
@@ -151,7 +191,7 @@ export const useProgressStore = create<ProgressState>()(
         const valueChange = value * modifier;
         set({
           dailyChecklist: { ...state.dailyChecklist, [fullKey]: !isCurrentlyDone },
-          vocabCount: type === 'vocab' ? Math.max(0, state.vocabCount + valueChange) : state.vocabCount,
+          manualVocabCount: type === 'vocab' ? Math.max(0, state.manualVocabCount + valueChange) : state.manualVocabCount,
           grammarPoints: type === 'grammar' ? Math.max(0, state.grammarPoints + valueChange) : state.grammarPoints,
           immersionMinutes: type === 'immersion' ? Math.max(0, state.immersionMinutes + valueChange) : state.immersionMinutes,
         });
@@ -168,10 +208,7 @@ export const useProgressStore = create<ProgressState>()(
           delete currentDates[dateStr];
         }
 
-        set({
-          completedDates: currentDates,
-          vocabCount: Math.max(0, state.vocabCount + (isMarkingComplete ? 20 : -20))
-        });
+        set({ completedDates: currentDates });
       },
 
       addKeepsake: (item) => set(state => ({ keepsakes: [item, ...state.keepsakes] })),
@@ -186,25 +223,21 @@ export const useProgressStore = create<ProgressState>()(
       })),
 
       resetProgress: () => set({
-        vocabCount: 2500, immersionMinutes: 0, grammarPoints: 0, streak: 0,
+        baseVocab: 2500, manualVocabCount: 0, immersionMinutes: 0, grammarPoints: 0, streak: 0,
         lastLogDate: null, logs: [], masteredChapters: [], grammarContext: '',
         grammarDatabase: {}, dailyChecklist: {}, completedDates: {},
-        keepsakes: [], activityLogs: []
+        keepsakes: [], activityLogs: [], currentSessionStartTime: null
       }),
 
       resetToSeed: () => {
         const incomingData = (seedData as any).data;
         if (!incomingData) return;
-
-        // Restore main store
         const stateData = incomingData[STORAGE_KEY]?.state;
         if (stateData) {
           set(stateData);
           const fullState = { state: get(), version: (seedData as any).version || 7 };
           localStorage.setItem(STORAGE_KEY, JSON.stringify(fullState));
         }
-
-        // Restore all secondary keys (history, timers, etc)
         Object.keys(incomingData).forEach(key => {
           if (key !== STORAGE_KEY) {
             const val = incomingData[key];
@@ -217,15 +250,7 @@ export const useProgressStore = create<ProgressState>()(
     {
       name: STORAGE_KEY,
       version: 7,
-      storage: createJSONStorage(() => localStorage),
-      onRehydrateStorage: (state) => {
-        const hasStorage = !!localStorage.getItem(STORAGE_KEY);
-        if (!hasStorage) {
-          return (hydratedState) => {
-            if (hydratedState) hydratedState.resetToSeed();
-          };
-        }
-      }
+      storage: createJSONStorage(() => localStorage)
     }
   )
 );

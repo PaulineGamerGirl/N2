@@ -1,11 +1,11 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { VideoAnalysis, ExplanationCard, DialogueNode } from "../types/immersionSchema";
+import { VideoAnalysis, ExplanationCard, DialogueNode, TokenType } from "../types/immersionSchema";
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-// Constants for Virtual Chunking
-const CHUNK_SIZE = 300; // 5 minutes in seconds
+const CHUNK_SIZE = 300; 
+const ENRICH_BATCH_SIZE = 20; // Reduced for higher precision in mapping
 const MAX_RETRIES = 2;
 
 interface TimeSegment {
@@ -14,14 +14,10 @@ interface TimeSegment {
   index: number;
 }
 
-/**
- * Helper to generate time segments for a given duration
- */
 const generateSegments = (duration: number): TimeSegment[] => {
   const segments: TimeSegment[] = [];
   let current = 0;
   let index = 0;
-
   while (current < duration) {
     const end = Math.min(current + CHUNK_SIZE, duration);
     segments.push({ start: current, end, index });
@@ -31,9 +27,6 @@ const generateSegments = (duration: number): TimeSegment[] => {
   return segments;
 };
 
-/**
- * Single chunk analysis logic with retry wrapper
- */
 const analyzeSegment = async (
   base64Data: string, 
   mimeType: string, 
@@ -41,38 +34,19 @@ const analyzeSegment = async (
   retryCount = 0
 ): Promise<DialogueNode[]> => {
   const prompt = `
-    Analyze the provided media ONLY from timestamp ${segment.start.toFixed(2)} seconds to ${segment.end.toFixed(2)} seconds. 
-    DO NOT transcribe or analyze anything before or after this specific range.
-    
-    CRITICAL TRANSCRIPTION RULES (VERBATIM MODE):
-    1. STRICTLY VERBATIM: Transcribe EXACTLY what is spoken within this range. Include filler words (eto, ano, nanka), stutters, and false starts.
-    2. NO CLEANING: The text must match the audio 1:1.
-    3. PRECISION: Use sub-second (0.01s) precision for timestampStart and timestampEnd. 
-    
-    Linguistic Rules:
-    1. Morpheme Splitting (Japanese): Split verbs/adjectives into Root (CONTENT) and Conjugation (GRAMMAR).
-       Ex: "Tabetakatta" -> [Tabe (CONTENT)] + [ta (GRAMMAR)] + [katta (GRAMMAR)].
-    2. Semantic Linking (groupId): Assign a unique integer ID to distinct concepts. 
-       If JP "Ringo" maps to EN "Apple", they share the same groupId.
-    3. Type Logic:
-       CONTENT: Nouns, Verb Roots, Adjective Roots, Adverbs.
-       GRAMMAR: Particles, Copulas, Verb Endings, Connectors.
+    Analyze media ${segment.start.toFixed(2)}s to ${segment.end.toFixed(2)}s. 
+    1. STRICT VERBATIM: Transcribe EXACTLY what is spoken.
+    2. Morpheme Splitting (Japanese): Root (CONTENT), Conjugation (GRAMMAR).
+    3. LEMMATIZATION: CONTENT tokens must have 'baseForm'.
+    4. Semantic Linking (groupId): Concept IDs.
   `;
 
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: [
-        {
-          inlineData: {
-            data: base64Data,
-            mimeType: mimeType,
-          },
-        },
-        {
-          text: prompt,
-        },
-      ],
+      contents: {
+        parts: [{ inlineData: { data: base64Data, mimeType: mimeType } }, { text: prompt }],
+      },
       config: {
         responseMimeType: 'application/json',
         responseSchema: {
@@ -94,6 +68,7 @@ const analyzeSegment = async (
                       properties: {
                         text: { type: Type.STRING },
                         romaji: { type: Type.STRING },
+                        baseForm: { type: Type.STRING },
                         type: { type: Type.STRING },
                         groupId: { type: Type.INTEGER }
                       },
@@ -124,73 +99,153 @@ const analyzeSegment = async (
 
     if (response.text) {
       const parsed = JSON.parse(response.text);
-      // Tag IDs with chunk index to prevent collisions during stitching
       return (parsed.nodes || []).map((node: DialogueNode) => ({
         ...node,
         id: `c${segment.index}_${node.id}`
       }));
     }
     throw new Error("Empty response");
-
   } catch (error) {
-    if (retryCount < MAX_RETRIES) {
-      console.warn(`Retrying chunk ${segment.index} (Attempt ${retryCount + 1})...`);
-      return analyzeSegment(base64Data, mimeType, segment, retryCount + 1);
-    }
-    console.error(`Chunk ${segment.index} failed after ${MAX_RETRIES} retries.`, error);
-    return []; // Return empty array so the rest can still stitch
+    if (retryCount < MAX_RETRIES) return analyzeSegment(base64Data, mimeType, segment, retryCount + 1);
+    return [];
   }
 };
 
 /**
- * The "Immersion Engine"
- * Refactored to handle long-form content via segment parallelization.
+ * Subtitle Enrichment Engine (v2.1: Semantic SNAP Alignment)
+ * Robustly pairs Japanese source with English source even if timestamps drift.
  */
+export const enrichSubtitles = async (
+  jpNodes: DialogueNode[], 
+  enNodes?: DialogueNode[],
+  onProgress?: (p: number) => void
+): Promise<DialogueNode[]> => {
+  const total = jpNodes.length;
+  const enrichedNodes: DialogueNode[] = [];
+
+  const promptBase = `
+    You are the Linguistic Alignment Heart of Nihongo Nexus.
+    
+    TASK: Parallel Snapping & Analysis.
+    You will receive a batch of Japanese lines and a 'Context Map' of possible English matches.
+    
+    RULES:
+    1. SNAP ALIGNMENT: Match each Japanese line to its CORRECT English translation from the context. Ignore slight timestamp differences; prioritize semantic meaning.
+    2. SYMMETRIC HIGHLIGHTING: 
+       - Identify shared concepts between the JP and EN lines.
+       - Assign them matching integer 'groupId' values (1, 2, 3...).
+       - If 'ノート' is ID 5, 'note' in English MUST also be ID 5.
+    3. TOKENIZATION: Split JP into CONTENT/GRAMMAR. Keep English natural but tokenized.
+    4. PRESERVATION: Do not invent new English. Use the provided maps.
+  `;
+
+  for (let i = 0; i < total; i += ENRICH_BATCH_SIZE) {
+    const jpBatch = jpNodes.slice(i, i + ENRICH_BATCH_SIZE);
+    
+    // Create a context window of English lines for the AI to "look ahead/behind"
+    // This handles the 5-second drift mentioned by the user.
+    const windowStart = Math.max(0, i - 10);
+    const windowEnd = Math.min(enNodes?.length || 0, i + ENRICH_BATCH_SIZE + 10);
+    const enContext = enNodes?.slice(windowStart, windowEnd).map(n => ({
+      ts: n.timestampStart.toFixed(1),
+      text: n.japanese.map(t => t.text).join('')
+    })) || [];
+
+    const batchInput = {
+      japaneseLines: jpBatch.map(n => ({
+        id: n.id,
+        ts: n.timestampStart.toFixed(1),
+        text: n.japanese.map(t => t.text).join('')
+      })),
+      englishContextMap: enContext
+    };
+
+    if (onProgress) onProgress(Math.round((i / total) * 100));
+
+    try {
+      const response = await ai.models.generateContent({
+        model: 'gemini-3-flash-preview',
+        contents: `${promptBase}\n\nINPUT DATA:\n${JSON.stringify(batchInput)}`,
+        config: {
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                id: { type: Type.STRING },
+                japanese: {
+                  type: Type.ARRAY,
+                  items: {
+                    type: Type.OBJECT,
+                    properties: {
+                      text: { type: Type.STRING },
+                      romaji: { type: Type.STRING },
+                      baseForm: { type: Type.STRING },
+                      type: { type: Type.STRING },
+                      groupId: { type: Type.INTEGER }
+                    },
+                    required: ["text", "type", "groupId"]
+                  }
+                },
+                english: {
+                  type: Type.ARRAY,
+                  items: {
+                    type: Type.OBJECT,
+                    properties: {
+                      text: { type: Type.STRING },
+                      type: { type: Type.STRING },
+                      groupId: { type: Type.INTEGER }
+                    },
+                    required: ["text", "type", "groupId"]
+                  }
+                }
+              },
+              required: ["id", "japanese", "english"]
+            }
+          }
+        }
+      });
+
+      if (response.text) {
+        const results = JSON.parse(response.text);
+        results.forEach((res: any) => {
+          const original = jpNodes.find(n => n.id === res.id);
+          if (original) {
+            enrichedNodes.push({
+              ...original,
+              japanese: res.japanese,
+              english: res.english
+            });
+          }
+        });
+      }
+    } catch (e) {
+      console.error("Alignment Batch Error:", e);
+      jpBatch.forEach(b => enrichedNodes.push(b));
+    }
+  }
+
+  if (onProgress) onProgress(100);
+  return enrichedNodes.sort((a, b) => a.timestampStart - b.timestampStart);
+};
+
 export const analyzeImmersionMedia = async (base64Data: string, mimeType: string, duration?: number): Promise<VideoAnalysis> => {
   if (!duration) {
-    // Fallback to single-pass if duration isn't provided (unlikely given our current flow)
     const result = await analyzeSegment(base64Data, mimeType, { start: 0, end: 9999, index: 0 });
     return { videoId: crypto.randomUUID(), title: "Analyzed Media", nodes: result };
   }
-
-  // 1. Generate Virtual Chunks
   const segments = generateSegments(duration);
-  console.log(`Spinning up ${segments.length} agents for ${duration.toFixed(2)}s video...`);
-
-  // 2. Parallel Processing
-  const chunkResults = await Promise.all(
-    segments.map(seg => analyzeSegment(base64Data, mimeType, seg))
-  );
-
-  // 3. Stitching & Chronological Sorting
-  const allNodes = chunkResults
-    .flat()
-    .sort((a, b) => a.timestampStart - b.timestampStart);
-
+  const chunkResults = await Promise.all(segments.map(seg => analyzeSegment(base64Data, mimeType, seg)));
   return {
     videoId: crypto.randomUUID(),
     title: "Deep Immersive Chronicle",
-    nodes: allNodes
+    nodes: chunkResults.flat().sort((a, b) => a.timestampStart - b.timestampStart)
   };
 };
 
-/**
- * The "Deep Dive Sensei"
- */
 export const explainToken = async (contextSentence: string, targetPhrase: string): Promise<ExplanationCard> => {
-  const prompt = `
-    You are the "Sensei" for Nihongo Nexus. Provide a "Gold Standard" grammatical breakdown.
-    
-    Context Sentence: "${contextSentence}"
-    Target Phrase: "${targetPhrase}"
-
-    TASKS:
-    1. Explode the word into atomic parts (Base form + Conjugations + Particles).
-    2. Explain nuance based on the context.
-    
-    Return strictly JSON matching the schema.
-  `;
-
+  const prompt = `Sensei breakdown for context "${contextSentence}" and target "${targetPhrase}".`;
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
     contents: prompt,
@@ -199,48 +254,14 @@ export const explainToken = async (contextSentence: string, targetPhrase: string
       responseSchema: {
         type: Type.OBJECT,
         properties: {
-          headword: {
-            type: Type.OBJECT,
-            properties: {
-              text: { type: Type.STRING },
-              romaji: { type: Type.STRING },
-              basicMeaning: { type: Type.STRING }
-            },
-            required: ["text", "romaji", "basicMeaning"]
-          },
-          analysis: {
-            type: Type.OBJECT,
-            properties: {
-              baseForm: { type: Type.STRING },
-              conjugationPath: { type: Type.ARRAY, items: { type: Type.STRING } },
-              breakdown: { type: Type.STRING }
-            },
-            required: ["baseForm", "conjugationPath", "breakdown"]
-          },
-          particle: {
-            type: Type.OBJECT,
-            properties: {
-              text: { type: Type.STRING },
-              function: { type: Type.STRING }
-            }
-          },
-          nuance: {
-            type: Type.OBJECT,
-            properties: {
-              jlptLevel: { type: Type.STRING },
-              explanation: { type: Type.STRING }
-            },
-            required: ["jlptLevel", "explanation"]
-          },
+          headword: { type: Type.OBJECT, properties: { text: { type: Type.STRING }, romaji: { type: Type.STRING }, basicMeaning: { type: Type.STRING } } },
+          analysis: { type: Type.OBJECT, properties: { baseForm: { type: Type.STRING }, conjugationPath: { type: Type.ARRAY, items: { type: Type.STRING } }, breakdown: { type: Type.STRING } } },
+          nuance: { type: Type.OBJECT, properties: { jlptLevel: { type: Type.STRING }, explanation: { type: Type.STRING } } },
           naturalTranslation: { type: Type.STRING }
-        },
-        required: ["headword", "analysis", "nuance", "naturalTranslation"]
+        }
       }
     }
   });
-
-  if (response.text) {
-    return JSON.parse(response.text) as ExplanationCard;
-  }
-  throw new Error("Sensei failed to explain");
+  if (response.text) return JSON.parse(response.text) as ExplanationCard;
+  throw new Error("Sensei failed");
 };

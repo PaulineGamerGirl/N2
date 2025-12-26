@@ -27,7 +27,8 @@ export interface QuestPhase {
   endDate: string;   // YYYY-MM-DD
 }
 
-export type View = 'dashboard' | 'questmap' | 'inventory' | 'syntax' | 'messenger' | 'activity' | 'theater';
+// Added 'anime' to the union type
+export type View = 'dashboard' | 'questmap' | 'inventory' | 'syntax' | 'messenger' | 'activity' | 'theater' | 'anime';
 
 export interface LogData {
   vocabAdded: number;

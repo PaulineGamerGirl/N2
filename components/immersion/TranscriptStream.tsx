@@ -20,9 +20,7 @@ const TokenChip: React.FC<{
 }> = ({ token, isEnglish = false, isActive, onTokenClick }) => {
   const isPunctuation = token.type === TokenType.PUNCTUATION;
   const isGrammar = token.type === TokenType.GRAMMAR;
-
-  // Concept mapping logic: Only highlight if groupId is valid (non-zero)
-  const canHighlight = token.groupId !== 0;
+  const canHighlight = token.groupId > 0; // Fixed: strictly check for positive IDs
 
   return (
     <motion.span 
@@ -31,8 +29,8 @@ const TokenChip: React.FC<{
         if (canHighlight) onTokenClick(token.groupId);
       }}
       className={`
-        inline-flex px-0.5 py-0.5 rounded-md transition-all duration-200 cursor-pointer
-        ${isActive ? 'bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200 shadow-sm z-10 scale-105' : ''}
+        inline-flex px-0.5 py-0.5 rounded-md transition-all duration-300 cursor-pointer
+        ${isActive ? 'bg-emerald-100 text-emerald-900 ring-1 ring-emerald-300 shadow-sm z-10 scale-105' : ''}
         ${!isActive && isPunctuation ? 'text-gray-300' : ''}
         ${!canHighlight ? 'cursor-default' : 'hover:bg-rose-50/50'}
       `}
@@ -42,7 +40,7 @@ const TokenChip: React.FC<{
         ${isEnglish ? 'text-[10px] md:text-[11px]' : 'text-sm md:text-base'}
         ${!isActive && isGrammar ? 'text-rose-400 font-medium' : ''}
         ${!isActive && !isGrammar && !isPunctuation ? (isEnglish ? 'text-gray-500 font-medium' : 'font-bold text-coquette-text') : ''}
-        ${isActive ? 'font-bold underline decoration-emerald-200 decoration-2 underline-offset-2' : ''}
+        ${isActive ? 'font-bold' : ''}
       `}>
         {token.text}
       </span>
@@ -60,21 +58,16 @@ const TranscriptLine: React.FC<{
 }> = ({ line, isActive, isTranslationVisible, onSeek, activeGroupId, onTokenClick }) => {
   const lineRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll to active line
   useEffect(() => {
     if (isActive && lineRef.current) {
       lineRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
   }, [isActive]);
 
-  // Logic: Show translation if eye-button is ON OR a word is specifically selected for detail
   const shouldRevealTranslation = isTranslationVisible || (activeGroupId !== null);
 
   const handleTokenInteraction = (groupId: number) => {
-    // If clicking a word on a line that isn't the current one, seek the video
-    if (!isActive) {
-        onSeek(line.timestampStart);
-    }
+    if (!isActive) onSeek(line.timestampStart);
     onTokenClick(groupId);
   };
 
@@ -83,11 +76,9 @@ const TranscriptLine: React.FC<{
       ref={lineRef}
       className={`mb-3 flex gap-2.5 transition-all duration-500 ${isActive ? 'scale-[1.01]' : 'opacity-70'}`}
     >
-      {/* Navigation (The Sidebar / Gutter) */}
       <div className="flex flex-col items-center pt-1.5">
         <button
           onClick={() => onSeek(line.timestampStart)}
-          title="Jump video to this line"
           className={`
             w-1 flex-1 rounded-full transition-all duration-300 group relative
             ${isActive ? 'bg-rose-400 shadow-[0_0_8px_rgba(244,172,183,0.6)]' : 'bg-rose-100/80 hover:bg-rose-300'}
@@ -99,29 +90,26 @@ const TranscriptLine: React.FC<{
         </button>
       </div>
 
-      {/* Dialogue Content */}
       <motion.div
         animate={{ 
           backgroundColor: isActive ? 'rgba(255, 255, 255, 0.95)' : 'rgba(255, 255, 255, 0.3)',
           borderColor: isActive ? '#fde2e4' : 'transparent',
           boxShadow: isActive ? '0 10px 25px -5px rgba(244, 172, 183, 0.12)' : 'none'
         }}
-        className="flex-1 text-left py-2.5 px-4 rounded-[20px] border-2 transition-shadow"
+        className="flex-1 text-left py-2.5 px-4 rounded-[20px] border-2 transition-shadow overflow-hidden"
       >
         <div className="flex flex-col gap-1.5">
-          {/* Japanese Token Stream */}
           <div className="flex flex-wrap items-end gap-x-0.5">
             {line.japanese.map((t, i) => (
               <TokenChip 
                 key={i} 
                 token={t} 
-                isActive={activeGroupId === t.groupId && t.groupId !== 0}
+                isActive={activeGroupId === t.groupId && t.groupId > 0}
                 onTokenClick={handleTokenInteraction}
               />
             ))}
           </div>
 
-          {/* English Stream - The Drawer */}
           <AnimatePresence>
             {isActive && shouldRevealTranslation && (
               <motion.div
@@ -131,13 +119,13 @@ const TranscriptLine: React.FC<{
                 transition={{ duration: 0.3, ease: "circOut" }}
                 className="overflow-hidden"
               >
-                <div className="flex flex-wrap items-center gap-x-0.5 border-l border-emerald-100 pl-3 mt-1.5 mb-1 py-0.5">
+                <div className="flex flex-wrap items-center gap-x-0.5 border-l-2 border-emerald-100 pl-3 mt-1.5 mb-1 py-0.5">
                   {line.english.map((t, i) => (
                     <TokenChip 
                       key={i} 
                       token={t} 
                       isEnglish 
-                      isActive={activeGroupId === t.groupId && t.groupId !== 0}
+                      isActive={activeGroupId === t.groupId && t.groupId > 0}
                       onTokenClick={handleTokenInteraction}
                     />
                   ))}
@@ -169,15 +157,6 @@ const TranscriptStream: React.FC<TranscriptStreamProps> = ({ nodes, activeNodeId
   const [activeGroupId, setActiveGroupId] = useState<number | null>(null);
   const hasContent = nodes && nodes.length > 0;
 
-  // Clear highlight when switching nodes naturally through video playback
-  // but keep it if seeking manually via TokenChip click
-  useEffect(() => {
-    // If activeGroupId is set, it likely came from a click, 
-    // so we don't want to immediately wipe it when the activeNodeId changes 
-    // due to the resulting seek.
-    // However, if playing naturally, we want to clear.
-  }, [activeNodeId]);
-
   const handleTokenClick = (groupId: number) => {
     setActiveGroupId(prev => prev === groupId ? null : groupId);
   };
@@ -191,7 +170,7 @@ const TranscriptStream: React.FC<TranscriptStreamProps> = ({ nodes, activeNodeId
                 <div className="p-4 rounded-full bg-white shadow-sm border border-rose-50 text-rose-200 mb-4">
                   <ScrollText className="w-8 h-8" />
                 </div>
-                <h3 className="font-coquette-header text-lg text-gray-700 font-bold mb-1">Analyzing Dialogue...</h3>
+                <h3 className="font-coquette-header text-lg text-gray-700 font-bold mb-1">Analyzing Parallel Script...</h3>
                 <TranscriptSkeleton />
              </div>
           ) : (

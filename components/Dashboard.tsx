@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { containerVariants, itemVariants } from '../constants';
@@ -6,7 +7,6 @@ import Countdown from './Countdown';
 import { useProgressStore, Keepsake } from '../store/progressStore';
 import { CAMPAIGN_PHASES } from '../data/campaign';
 import { BookOpen, Clock, PenTool, Award, Flower, X, Calendar, MessageCircle, Scroll, Tv, Database } from 'lucide-react';
-// Fix: remove parseISO from imports
 import { isWithinInterval, format, eachDayOfInterval, endOfMonth, getDay, addMonths } from 'date-fns';
 import CompactCalendarWidget from './CompactCalendarWidget';
 import DataManagementModal from './DataManagementModal';
@@ -16,10 +16,17 @@ interface DashboardProps {
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ onOpenLogModal }) => {
-  const { vocabCount, masteredChapters, grammarDatabase, streak, completedDates, keepsakes } = useProgressStore();
+  const { baseVocab, manualVocabCount, masteredChapters, grammarDatabase, streak, completedDates, keepsakes, vocabCount: legacyVocabCount } = useProgressStore();
   const [isYearlyModalOpen, setIsYearlyModalOpen] = useState(false);
   const [isDataModalOpen, setIsDataModalOpen] = useState(false);
   const [currentDate, setCurrentDate] = useState(new Date());
+
+  // --- NEW DETERMINISTIC VOCAB CALCULATION ---
+  // If baseVocab exists (new logic), use it. Else fallback to legacy vocabCount for transition.
+  const calculatedVocab = useMemo(() => {
+    const heartCount = Object.keys(completedDates || {}).length;
+    return (baseVocab || legacyVocabCount || 2500) + (manualVocabCount || 0) + (heartCount * 20);
+  }, [baseVocab, legacyVocabCount, manualVocabCount, completedDates]);
 
   // --- AGGREGATED STUDY METRICS (Real-time with Background Support) ---
   const [liveMetrics, setLiveMetrics] = useState({
@@ -32,7 +39,6 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenLogModal }) => {
   useEffect(() => {
     const calculateLiveTotals = () => {
       const now = Date.now();
-      
       const getLiveTime = (totalKey: string, startKey: string) => {
         const total = Number(localStorage.getItem(totalKey) || 0);
         const start = localStorage.getItem(startKey);
@@ -82,8 +88,6 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenLogModal }) => {
   };
 
   const keepsakeEffectiveMins = calculateImmersionMinutes(keepsakes);
-  
-  // Apply 3x multiplier to active immersion timer as well
   const timerEffectiveMins = (liveMetrics.immersion / 60) * 3;
   const totalEffectiveImmersionMins = keepsakeEffectiveMins + timerEffectiveMins;
 
@@ -100,15 +104,11 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenLogModal }) => {
   const immersionPct = (immersionHours / totalForCalc) * 100;
   const ankiPct = (ankiHours / totalForCalc) * 100;
 
-  const p1 = outputPct;
-  const p2 = p1 + grammarPct;
-  const p3 = p2 + immersionPct;
-  
   const donutGradient = `conic-gradient(
-    #f4acb7 0% ${p1}%, 
-    #a5b4fc ${p1}% ${p2}%, 
-    #ccd5ae ${p2}% ${p3}%,
-    #d4a373 ${p3}% 100%
+    #f4acb7 0% ${outputPct}%, 
+    #a5b4fc ${outputPct}% ${outputPct + grammarPct}%, 
+    #ccd5ae ${outputPct + grammarPct}% ${outputPct + grammarPct + immersionPct}%,
+    #d4a373 ${outputPct + grammarPct + immersionPct}% 100%
   )`;
 
   const VOCAB_GOAL = 8000;
@@ -126,8 +126,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenLogModal }) => {
     setCurrentDate(getManilaTime());
     const timer = setInterval(() => {
       setCurrentDate(getManilaTime());
-    }, 1000 * 60); 
-
+    }, 60000); 
     return () => clearInterval(timer);
   }, []);
   
@@ -140,9 +139,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenLogModal }) => {
   };
 
   const formattedDate = format(currentDate, "EEEE, MMMM do, yyyy");
-  
   const currentPhase = CAMPAIGN_PHASES.find(phase => 
-    // Fix: use new Date() instead of parseISO
     isWithinInterval(currentDate, { start: new Date(phase.startDate), end: new Date(phase.endDate) })
   );
 
@@ -181,7 +178,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenLogModal }) => {
             <span className="mx-2 opacity-50">|</span> 
             Status: 
             <span className="text-coquette-text font-bold ml-1">
-              {getRank(vocabCount)}
+              {getRank(calculatedVocab)}
             </span>
           </p>
         </div>
@@ -206,10 +203,10 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenLogModal }) => {
             </h2>
             <div className="flex flex-col md:flex-row justify-around items-center gap-12">
               <CircularProgress 
-                value={vocabCount} 
+                value={calculatedVocab} 
                 max={VOCAB_GOAL} 
                 label="Vocabulary"
-                subLabel={`${vocabCount.toLocaleString()} / ${VOCAB_GOAL.toLocaleString()}`}
+                subLabel={`${calculatedVocab.toLocaleString()} / ${VOCAB_GOAL.toLocaleString()}`}
                 color="#f4acb7" 
               />
               <div className="relative flex flex-col items-center justify-center" style={{ width: 200, height: 200 }}>
@@ -250,7 +247,6 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenLogModal }) => {
           </motion.div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Grammar Stat */}
               <motion.div variants={itemVariants} className="bg-white border border-coquette-border rounded-[25px] p-5 hover:border-coquette-accent shadow-sm transition-colors">
                 <div className="flex items-center gap-4">
                   <div className="p-3 rounded-lg bg-indigo-100 text-indigo-400">
@@ -268,7 +264,6 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenLogModal }) => {
                 </div>
               </motion.div>
 
-              {/* Effective Immersion Stat */}
               <motion.div variants={itemVariants} className="bg-white border border-coquette-border rounded-[25px] p-5 hover:border-coquette-gold shadow-sm transition-colors">
                 <div className="flex items-center gap-4">
                   <div className="p-3 rounded-lg bg-green-100 text-green-500">
@@ -286,7 +281,6 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenLogModal }) => {
                 </div>
               </motion.div>
 
-              {/* Streak Card */}
               <motion.div variants={itemVariants} className="bg-white border border-coquette-border rounded-[25px] p-5 shadow-sm relative overflow-hidden flex flex-col justify-center items-center text-center">
                  <div className="text-xs uppercase tracking-widest mb-1 text-coquette-gold font-bold font-coquette-body">Dedication</div>
                  <div className="text-4xl font-bold font-coquette-header text-coquette-text">
@@ -295,7 +289,6 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenLogModal }) => {
                  <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-coquette-accent to-coquette-gold opacity-50"></div>
               </motion.div>
 
-              {/* Log Button */}
               <motion.div variants={itemVariants} className="row-span-1 md:col-span-1">
                  <button 
                     onClick={onOpenLogModal}
@@ -308,11 +301,10 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenLogModal }) => {
                  </button>
               </motion.div>
               
-              {/* Status Card (Span 2 on mobile) */}
               <motion.div variants={itemVariants} className="col-span-1 md:col-span-2 bg-white border border-coquette-border rounded-[25px] p-5 flex items-center justify-between hover:bg-coquette-bg transition-colors shadow-sm">
                  <div>
                     <div className="text-xs uppercase tracking-widest mb-1 text-coquette-gold font-bold">Current Status</div>
-                    <div className="text-lg font-bold font-coquette-header text-coquette-text">{getRank(vocabCount)}</div>
+                    <div className="text-lg font-bold font-coquette-header text-coquette-text">{getRank(calculatedVocab)}</div>
                  </div>
                  <div className="w-10 h-10 rounded-full bg-coquette-bg flex items-center justify-center border border-coquette-gold/30">
                     <Award className="w-6 h-6 text-coquette-gold" />
@@ -321,62 +313,42 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenLogModal }) => {
           </div>
         </div>
 
-        {/* RIGHT PANEL: COMPACT CALENDAR (Span 4) */}
         <div className="col-span-12 lg:col-span-4 h-full min-h-[400px]">
            <CompactCalendarWidget onOpenYearlyView={() => setIsYearlyModalOpen(true)} />
         </div>
       </div>
 
-      {/* YEARLY JOURNEY MODAL */}
       <AnimatePresence>
         {isYearlyModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-             <motion.div 
-               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-               onClick={() => setIsYearlyModalOpen(false)}
-               className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-             />
-             <motion.div
-               initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
-               className="bg-white border-2 border-coquette-border rounded-[40px] shadow-2xl p-8 max-w-5xl w-full max-h-[90vh] overflow-y-auto relative z-10"
-             >
+             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsYearlyModalOpen(false)} className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+             <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-white border-2 border-coquette-border rounded-[40px] shadow-2xl p-8 max-w-5xl w-full max-h-[90vh] overflow-y-auto relative z-10">
                 <div className="flex justify-between items-center mb-8">
                   <div>
                     <h2 className="text-3xl font-coquette-header text-coquette-text">My Yearly Journey</h2>
                     <p className="text-coquette-subtext font-coquette-body italic">"Constancy is the foundation of virtues."</p>
                   </div>
-                  <button onClick={() => setIsYearlyModalOpen(false)} className="p-2 rounded-full hover:bg-gray-100 transition-colors">
-                    <X className="w-6 h-6" />
-                  </button>
+                  <button onClick={() => setIsYearlyModalOpen(false)} className="p-2 rounded-full hover:bg-gray-100 transition-colors"><X className="w-6 h-6" /></button>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                   {Array.from({ length: 12 }).map((_, monthIdx) => {
                     const currentYearStart = new Date(new Date().getFullYear(), 0, 1);
                     const startOfMonthDate = addMonths(currentYearStart, monthIdx);
-                    const daysInMonth = eachDayOfInterval({
-                      start: startOfMonthDate,
-                      end: endOfMonth(startOfMonthDate)
-                    });
+                    const daysInMonth = eachDayOfInterval({ start: startOfMonthDate, end: endOfMonth(startOfMonthDate) });
                     const startDay = getDay(startOfMonthDate);
                     const padding = Array(startDay).fill(null);
                     return (
                       <div key={monthIdx} className="bg-[#fffcfc] rounded-2xl p-4 border border-gray-100 hover:border-coquette-accent/30 transition-colors">
-                        <h3 className="text-center font-coquette-header text-coquette-text mb-3 text-sm">
-                          {format(startOfMonthDate, 'MMMM')}
-                        </h3>
+                        <h3 className="text-center font-coquette-header text-coquette-text mb-3 text-sm">{format(startOfMonthDate, 'MMMM')}</h3>
                         <div className="grid grid-cols-7 gap-1">
-                          {['S','M','T','W','T','F','S'].map((d, i) => (
-                             <div key={i} className="text-[8px] text-center text-gray-300 font-bold">{d}</div>
-                          ))}
+                          {['S','M','T','W','T','F','S'].map((d, i) => (<div key={i} className="text-[8px] text-center text-gray-300 font-bold">{d}</div>))}
                           {padding.map((_, i) => <div key={`pad-${i}`} />)}
                           {daysInMonth.map(day => {
                             const dateStr = format(day, 'yyyy-MM-dd');
                             const isCompleted = completedDates[dateStr];
                             return (
                               <div key={dateStr} className="aspect-square flex items-center justify-center">
-                                <div className={`w-2 h-2 rounded-full transition-all duration-300
-                                   ${isCompleted ? 'bg-coquette-accent scale-125 shadow-[0_0_4px_#f4acb7]' : 'bg-gray-100'}
-                                `} title={format(day, 'MMM d')} />
+                                <div className={`w-2 h-2 rounded-full transition-all duration-300 ${isCompleted ? 'bg-coquette-accent scale-125 shadow-[0_0_4px_#f4acb7]' : 'bg-gray-100'}`} title={format(day, 'MMM d')} />
                               </div>
                             );
                           })}
@@ -390,10 +362,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenLogModal }) => {
         )}
       </AnimatePresence>
 
-      <DataManagementModal 
-         isOpen={isDataModalOpen}
-         onClose={() => setIsDataModalOpen(false)}
-      />
+      <DataManagementModal isOpen={isDataModalOpen} onClose={() => setIsDataModalOpen(false)} />
     </motion.div>
   );
 };
