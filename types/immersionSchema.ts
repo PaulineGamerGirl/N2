@@ -10,8 +10,8 @@ export enum TokenType {
 
 export interface ImmersionToken {
   text: string;
-  romaji?: string;
   baseForm?: string;
+  romaji?: string;
   type: TokenType;
   groupId: number;
 }
@@ -49,23 +49,24 @@ export interface EpisodeMetadata {
 
 export interface BreakdownSegment {
   japanese: string;
-  romaji: string;
   meaning: string;
   grammar_analysis: string;
-  isTarget: boolean; // True if this segment contains the word the user highlighted
-  jlptLevel?: string; // Optional, can be derived or passed if needed
-  frequencyRank?: string; // Optional
+  isTarget: boolean; 
+  jlptLevel?: string; 
+  // Fix: Added missing frequencyRank property to resolve type errors in components
+  frequencyRank?: string;
 }
 
 export interface ExplanationCard {
   segments: BreakdownSegment[];
   naturalTranslation: string; 
+  visualLogic: string; // New field for diagram description
 }
 
 export interface MinedCard {
   id: string;
   sourceTitle: string; 
-  sourceEpisode?: number; // Added for Anki tagging
+  sourceEpisode?: number; 
   front: string; 
   back: string;  
   translation: string; 
@@ -81,8 +82,8 @@ export interface QueueItem {
   srtFile: File;
   title: string;
   status: 'pending' | 'processing' | 'completed' | 'error';
-  progress: number; // 0-100
+  progress: number; 
   phase: 'Queued' | 'Audio Sync' | 'Translating' | 'Cooling Down' | 'Finalizing' | 'Done' | 'Failed';
-  details?: string; // e.g., "Cooling down: 45s remaining"
+  details?: string; 
   error?: string;
 }

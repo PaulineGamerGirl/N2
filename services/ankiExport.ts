@@ -3,22 +3,26 @@ import JSZip from 'jszip';
 import { MinedCard } from '../types/immersionSchema';
 
 /**
- * Senior Data Engineer: Anki Sync Engine (Schema V3)
+ * Senior Data Engineer: Anki Sync Engine (Schema V4)
  * Targets Note Type with exactly: 
- * Word; Word Meaning; Sentence Field; Image Field; Audio Field; Tags
+ * Word; Word Meaning; Reading; Sentence Field; Image Field; Audio Field; Tags
  */
-export const exportToAnki = async (cards: MinedCard[], deckName: string = "NihongoNexus_Export") => {
+export const exportToAnki = async (
+  cards: MinedCard[], 
+  readings: Record<string, string> = {}, 
+  deckName: string = "NihongoNexus_Export"
+) => {
   if (cards.length === 0) return;
 
   const zip = new JSZip();
   const csvRows: string[] = [];
 
-  // Metadata headers (Anki ignores # lines, but good for docs)
+  // Metadata headers
   csvRows.push("#separator:Semicolon");
   csvRows.push("#html:true");
-  csvRows.push("#columns:Word;Word Meaning;Sentence Field;Image Field;Audio Field;Tags");
+  csvRows.push("#columns:Word;Word Meaning;Reading;Sentence Field;Image Field;Audio Field;Tags");
 
-  console.log(`[AnkiExport] Deploying Schema V3 with Tagging for ${cards.length} nodes...`);
+  console.log(`[AnkiExport] Deploying Schema V4 with Readings for ${cards.length} nodes...`);
 
   for (const card of cards) {
     const timestamp = card.timestamp || Date.now();
@@ -47,21 +51,18 @@ export const exportToAnki = async (cards: MinedCard[], deckName: string = "Nihon
       const sentenceField = `${card.back}<br><small style="color: #999">${card.fullTranslation || ''}</small>`;
 
       // 4. Hierarchical Tag Generation
-      // Tags: NihongoNexus Immersion SeriesName SeriesName::Ep_XX
       const cleanSeriesTag = card.sourceTitle ? card.sourceTitle.replace(/\s+/g, '_') : 'Unknown_Series';
       const tags = ['NihongoNexus', 'Immersion', cleanSeriesTag];
-      
       if (card.sourceEpisode) {
-        // Anki uses :: for hierarchical tags (e.g., Death_Note::Ep_01)
         tags.push(`${cleanSeriesTag}::Ep_${card.sourceEpisode.toString().padStart(2, '0')}`);
       }
-
       const tagField = tags.join(' ');
 
       // 5. CSV Row Construction
       const row = [
         card.front.replace(/;/g, ','),
         card.translation.replace(/;/g, ','),
+        (readings[card.id] || '').replace(/;/g, ','), // The New Reading Field
         sentenceField.replace(/;/g, ','), 
         card.image ? `<img src="${imageFilename}">` : "",
         card.audio ? `[sound:${audioFilename}]` : "",
@@ -74,20 +75,17 @@ export const exportToAnki = async (cards: MinedCard[], deckName: string = "Nihon
     }
   }
 
-  // 6. Finalize Bundle
   zip.file("deck.csv", csvRows.join('\n'));
 
   try {
     const blob = await zip.generateAsync({ type: "blob" });
     const url = URL.createObjectURL(blob);
-    
     const link = document.createElement('a');
     link.href = url;
-    link.download = `${deckName}_${new Date().toISOString().split('T')[0]}.apkg.zip`; // Hinting it's for Anki
+    link.download = `${deckName}_${new Date().toISOString().split('T')[0]}.apkg.zip`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    
     setTimeout(() => URL.revokeObjectURL(url), 10000);
     console.log("[AnkiExport] Transmission Success.");
   } catch (error) {

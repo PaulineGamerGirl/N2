@@ -1,7 +1,8 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ImmersionVideo } from '../../types';
+// Fix: Added ImmersionVideo to the import list from types
+import { DialogueLine, ImmersionVideo } from '../../types';
 import TranscriptStream from './TranscriptStream';
 import { 
   Clapperboard, 
@@ -42,7 +43,7 @@ const ExitConfirmation: React.FC<{
 }> = ({ isOpen, title, onConfirm, onCancel }) => {
   if (!isOpen) return null;
   return (
-    <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[600] flex items-center justify-center p-4">
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-rose-950/40 backdrop-blur-sm" />
       <motion.div 
         initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
@@ -76,112 +77,107 @@ const SenseiModal: React.FC<{
   if (!explanation && !isLoading) return null;
 
   return (
-    <AnimatePresence>
-      <div className="fixed inset-0 z-200 flex items-center justify-center p-4">
-        <motion.div 
-          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-          onClick={onClose}
-          className="absolute inset-0 bg-rose-950/20 backdrop-blur-sm"
-        />
-        <motion.div 
-          initial={{ scale: 0.9, opacity: 0, y: 20 }} 
-          animate={{ scale: 1, opacity: 1, y: 0 }} 
-          exit={{ scale: 0.9, opacity: 0, y: 20 }}
-          className="relative w-full max-w-4xl bg-white rounded-[40px] shadow-2xl border border-rose-100 overflow-hidden flex flex-col"
-        >
-          {isLoading && !explanation ? (
-            <div className="p-20 flex flex-col items-center justify-center gap-6 text-center">
-              <Loader2 className="w-12 h-12 text-rose-300 animate-spin" />
-              <div>
-                <p className="font-coquette-rounded text-2xl text-gray-700 font-bold tracking-tight">Consulting the Sensei</p>
-                <p className="font-coquette-rounded text-rose-400 mt-2 font-medium">Analyzing sentence structure...</p>
-              </div>
+    <div className="fixed inset-0 z-[500] flex items-center justify-center p-4 pointer-events-auto">
+      <motion.div 
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        onClick={onClose}
+        className="absolute inset-0 bg-rose-950/20 backdrop-blur-sm"
+      />
+      <motion.div 
+        initial={{ scale: 0.9, opacity: 0, y: 20 }} 
+        animate={{ scale: 1, opacity: 1, y: 0 }} 
+        exit={{ scale: 0.9, opacity: 0, y: 20 }}
+        className="relative w-full max-w-4xl bg-white rounded-[40px] shadow-2xl border border-rose-100 overflow-hidden flex flex-col max-h-[85vh]"
+      >
+        {isLoading && !explanation ? (
+          <div className="p-20 flex flex-col items-center justify-center gap-6 text-center">
+            <Loader2 className="w-12 h-12 text-rose-300 animate-spin" />
+            <div>
+              <p className="font-coquette-rounded text-2xl text-gray-700 font-bold tracking-tight">Consulting the Sensei</p>
+              <p className="font-coquette-rounded text-rose-400 mt-2 font-medium">Analyzing sentence structure...</p>
             </div>
-          ) : explanation && (
-            <>
-              <div className="p-8 bg-rose-50/30 border-b border-rose-100 flex justify-between items-center">
-                <div className="flex items-center gap-5">
-                  <div className="p-3.5 bg-white rounded-2xl text-rose-400 shadow-sm border border-rose-50">
-                    <BrainCircuit className="w-7 h-7" />
-                  </div>
-                  <div>
-                    <h3 className="font-coquette-rounded text-2xl font-bold text-gray-800 leading-none">Breakdown Details</h3>
-                    <p className="text-[11px] uppercase tracking-[0.25em] text-rose-400 font-bold mt-2">
-                        {isLoading ? 'Streaming Analysis...' : 'Grammatical Decomposition'}
-                    </p>
-                  </div>
+          </div>
+        ) : explanation && (
+          <>
+            <div className="p-8 bg-rose-50/30 border-b border-rose-100 flex justify-between items-center shrink-0">
+              <div className="flex items-center gap-5">
+                <div className="p-3.5 bg-white rounded-2xl text-rose-400 shadow-sm border border-rose-50">
+                  <BrainCircuit className="w-7 h-7" />
                 </div>
-                <button onClick={onClose} className="p-3 rounded-full hover:bg-white text-gray-400 hover:text-rose-400 transition-colors">
-                  <X className="w-6 h-6" />
-                </button>
+                <div>
+                  <h3 className="font-coquette-rounded text-2xl font-bold text-gray-800 leading-none">Breakdown Details</h3>
+                  <p className="text-[11px] uppercase tracking-[0.25em] text-rose-400 font-bold mt-2">
+                      {isLoading ? 'Streaming Analysis...' : 'Grammatical Decomposition'}
+                  </p>
+                </div>
               </div>
+              <button onClick={onClose} className="p-3 rounded-full hover:bg-white text-gray-400 hover:text-rose-400 transition-colors">
+                <X className="w-6 h-6" />
+              </button>
+            </div>
 
-              <div className="p-8 space-y-8 overflow-y-auto max-h-[60vh] custom-scrollbar text-left bg-[#fffcfc]">
-                {explanation.segments?.map((segment, index) => (
-                  <motion.div 
-                    key={index} 
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className={`relative p-6 rounded-3xl transition-all border ${segment.isTarget ? 'bg-emerald-50/40 border-emerald-100 ring-2 ring-emerald-500/10 shadow-sm' : 'bg-white border-gray-100 shadow-sm'}`}
-                  >
-                    {segment.isTarget && (
-                      <div className="absolute -top-3 right-6 flex gap-2">
-                        {segment.jlptLevel && (
-                          <span className="px-3 py-1.5 bg-emerald-500 text-white text-[10px] font-bold uppercase tracking-widest rounded-full shadow-md">
-                            {segment.jlptLevel}
-                          </span>
-                        )}
-                        {segment.frequencyRank && (
-                          <span className="px-3 py-1.5 bg-white border border-emerald-100 text-emerald-600 text-[10px] font-bold uppercase tracking-widest rounded-full shadow-sm flex items-center gap-1.5">
-                            <TrendingUp className="w-3 h-3" /> {segment.frequencyRank}
-                          </span>
-                        )}
-                      </div>
-                    )}
-                    
-                    <div className="flex items-baseline gap-3 mb-4">
-                      <span className={`text-3xl font-bold font-coquette-rounded tracking-wide ${segment.isTarget ? 'text-emerald-700' : 'text-gray-800'}`}>
-                        {segment.japanese}
-                      </span>
-                      <span className="text-sm text-rose-400 font-coquette-rounded font-semibold tracking-wide">
-                        {segment.romaji}
-                      </span>
+            <div className="p-8 space-y-8 overflow-y-auto flex-1 custom-scrollbar text-left bg-[#fffcfc]">
+              {explanation.segments?.map((segment, index) => (
+                <motion.div 
+                  key={index} 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className={`relative p-6 rounded-3xl transition-all border ${segment.isTarget ? 'bg-emerald-50/40 border-emerald-100 ring-2 ring-emerald-500/10 shadow-sm' : 'bg-white border-gray-100 shadow-sm'}`}
+                >
+                  {segment.isTarget && (
+                    <div className="absolute -top-3 right-6 flex gap-2">
+                      {segment.jlptLevel && (
+                        <span className="px-3 py-1.5 bg-emerald-500 text-white text-[10px] font-bold uppercase tracking-widest rounded-full shadow-md">
+                          {segment.jlptLevel}
+                        </span>
+                      )}
+                      {segment.frequencyRank && (
+                        <span className="px-3 py-1.5 bg-white border border-emerald-100 text-emerald-600 text-[10px] font-bold uppercase tracking-widest rounded-full shadow-sm flex items-center gap-1.5">
+                          <TrendingUp className="w-3 h-3" /> {segment.frequencyRank}
+                        </span>
+                      )}
                     </div>
+                  )}
+                  
+                  <div className="flex items-baseline gap-3 mb-4">
+                    <span className={`text-3xl font-bold font-coquette-rounded tracking-wide ${segment.isTarget ? 'text-emerald-700' : 'text-gray-800'}`}>
+                      {segment.japanese}
+                    </span>
+                  </div>
 
-                    <ul className="space-y-2.5 pl-1">
-                      <li className="text-[15px] text-gray-600 font-coquette-rounded font-medium flex gap-3 leading-relaxed">
-                        <span className="text-rose-300 mt-1.5 min-w-[6px]">•</span>
-                        <span><strong>Meaning:</strong> {segment.meaning}</span>
-                      </li>
-                      <li className="text-[15px] text-gray-600 font-coquette-rounded font-medium flex gap-3 leading-relaxed">
-                        <span className="text-rose-300 mt-1.5 min-w-[6px]">•</span>
-                        <span><strong>Analysis:</strong> {segment.grammar_analysis}</span>
-                      </li>
-                    </ul>
-                  </motion.div>
-                ))}
-              </div>
+                  <ul className="space-y-2.5 pl-1">
+                    <li className="text-[15px] text-gray-600 font-coquette-rounded font-medium flex gap-3 leading-relaxed">
+                      <span className="text-rose-300 mt-1.5 min-w-[6px]">•</span>
+                      <span><strong>Meaning:</strong> {segment.meaning}</span>
+                    </li>
+                    <li className="text-[15px] text-gray-600 font-coquette-rounded font-medium flex gap-3 leading-relaxed">
+                      <span className="text-rose-300 mt-1.5 min-w-[6px]">•</span>
+                      <span><strong>Analysis:</strong> {segment.grammar_analysis}</span>
+                    </li>
+                  </ul>
+                </motion.div>
+              ))}
+            </div>
 
-              <div className="p-8 bg-rose-50/30 border-t border-rose-100">
-                 <div className="flex items-center gap-2 mb-4">
-                    <Quote className="w-5 h-5 text-rose-300" />
-                    <span className="text-[11px] font-black uppercase text-rose-400 tracking-[0.3em]">Final Translation</span>
-                 </div>
-                 <p className="text-xl md:text-2xl font-bold font-coquette-body text-gray-700 italic leading-relaxed">
-                    "{explanation.naturalTranslation || '...'}"
-                 </p>
-              </div>
+            <div className="p-8 bg-rose-50/30 border-t border-rose-100 shrink-0">
+               <div className="flex items-center gap-2 mb-4">
+                  <Quote className="w-5 h-5 text-rose-300" />
+                  <span className="text-[11px] font-black uppercase text-rose-400 tracking-[0.3em]">Final Translation</span>
+               </div>
+               <p className="text-xl md:text-2xl font-bold font-coquette-body text-gray-700 italic leading-relaxed">
+                  "{explanation.naturalTranslation || '...'}"
+               </p>
+            </div>
 
-              <div className="p-6 bg-gray-50/80 border-t border-gray-100 text-center">
-                 <button onClick={onClose} className="text-[11px] font-black uppercase tracking-[0.4em] text-gray-400 hover:text-rose-400 transition-colors">
-                    Close Analysis
-                 </button>
-              </div>
-            </>
-          )}
-        </motion.div>
-      </div>
-    </AnimatePresence>
+            <div className="p-6 bg-gray-50/80 border-t border-gray-100 text-center shrink-0">
+               <button onClick={onClose} className="text-[11px] font-black uppercase tracking-[0.4em] text-gray-400 hover:text-rose-400 transition-colors">
+                  Close Analysis
+               </button>
+            </div>
+          </>
+        )}
+      </motion.div>
+    </div>
   );
 };
 
@@ -496,7 +492,11 @@ const ImmersionStage: React.FC<ImmersionStageProps> = ({ video, isActive, index,
       </div>
 
       <UploadGateway isOpen={isUploadOpen} onClose={() => setIsUploadOpen(false)} />
-      <SenseiModal explanation={explanation} isLoading={isExplaining} onClose={() => setExplanation(null)} />
+      <AnimatePresence>
+        {explanation || isExplaining ? (
+          <SenseiModal explanation={explanation} isLoading={isExplaining} onClose={() => setExplanation(null)} />
+        ) : null}
+      </AnimatePresence>
       <ExitConfirmation isOpen={showExitConfirm} title={video.title} onConfirm={confirmExit} onCancel={() => setShowExitConfirm(false)} />
     </div>
   );

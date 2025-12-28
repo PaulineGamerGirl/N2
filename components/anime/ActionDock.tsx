@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronUp, ChevronDown, Pickaxe, Settings2, X, Volume2, VolumeX, Music, Sparkles, Loader2, BookOpen } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Pickaxe, Settings2, X, Volume2, VolumeX, Music, Sparkles, Loader2, BookOpen } from 'lucide-react';
 import { useImmersionStore } from '../../store/useImmersionStore';
 
 interface ActionDockProps {
@@ -38,122 +39,131 @@ const ActionDock: React.FC<ActionDockProps> = ({
   isDictionaryOpen,
   onToggleDictionary
 }) => {
-  const { setViewMode } = useImmersionStore();
+  const { setViewMode, clearPlaylist } = useImmersionStore();
   const [showVolumeSlider, setShowVolumeSlider] = useState(false);
 
-  // Reset the volume slider whenever the dock hides
   useEffect(() => {
-    if (!isVisible) {
-      setShowVolumeSlider(false);
-    }
+    if (!isVisible) setShowVolumeSlider(false);
   }, [isVisible]);
 
   if (!isVisible) return null;
 
   return (
     <motion.div
-      initial={{ x: 120, opacity: 0 }}
-      animate={{ x: 0, opacity: 1 }}
-      exit={{ x: 120, opacity: 0 }}
-      className="fixed right-8 top-[35%] -translate-y-1/2 z-[150] flex items-center gap-4 min-h-[300px]"
+      initial={{ y: -50, x: '-50%', opacity: 0 }}
+      animate={{ y: 0, x: '-50%', opacity: 1 }}
+      exit={{ y: -50, x: '-50%', opacity: 0 }}
+      className="fixed top-8 left-1/2 z-[150] flex items-center gap-4"
     >
-      {/* Volume Slider Flyout */}
-      <AnimatePresence>
-        {showVolumeSlider && (
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 20 }}
-            className="bg-black/80 backdrop-blur-3xl border border-white/10 p-5 rounded-3xl h-56 flex flex-col items-center justify-center gap-4 shadow-2xl"
-          >
-             <span className="text-[9px] font-black text-white/40 uppercase tracking-widest">{Math.round(volume * 100)}%</span>
-             <div className="flex-1 w-1.5 relative bg-white/10 rounded-full overflow-hidden">
-                <input 
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.01"
-                  value={isMuted ? 0 : volume}
-                  onChange={(e) => onVolumeChange(parseFloat(e.target.value))}
-                  className="absolute inset-0 h-full w-full opacity-0 cursor-pointer z-10"
-                  style={{ transform: 'rotate(-90deg)', transformOrigin: 'center', width: '200px', left: '-100px' } as any}
-                />
-                <div 
-                  className="absolute bottom-0 left-0 w-full bg-rose-500 transition-all duration-150"
-                  style={{ height: `${(isMuted ? 0 : volume) * 100}%` }}
-                />
-             </div>
-             <Music className="w-3.5 h-3.5 text-rose-400" />
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <div className="bg-black/60 backdrop-blur-3xl border border-white/10 rounded-[40px] py-8 px-3 flex flex-col items-center gap-6 shadow-[0_25px_80px_rgba(0,0,0,0.9)] relative">
-        {/* Decorative Top Accent */}
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-rose-500/40" />
-
-        {/* Back Button */}
-        <button onClick={() => setViewMode('standard')} className="w-10 h-10 rounded-full flex items-center justify-center bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-white transition-all shadow-sm group"><X className="w-4 h-4 group-hover:rotate-90 transition-transform" /></button>
+      <div className="bg-black/60 backdrop-blur-3xl border border-white/10 rounded-full px-6 py-3 flex items-center gap-5 shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
         
-        {/* Sync Settings */}
-        <button onClick={onToggleSettings} className="w-10 h-10 rounded-full flex items-center justify-center bg-white/5 text-white/30 hover:bg-white/10 hover:text-white transition-all" title="Sync Settings"><Settings2 className="w-4 h-4" /></button>
-
-        <div className="h-px w-6 bg-white/10" />
-
-        {/* Dictionary Toggle */}
+        {/* Exit Logic */}
         <button 
-          onClick={onToggleDictionary}
-          className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${isDictionaryOpen ? 'bg-emerald-500/20 text-emerald-400' : 'bg-white/5 text-white/30 hover:bg-white/10 hover:text-white'}`}
-          title="Frequency Stats"
+          onClick={() => setViewMode('standard')} 
+          className="w-10 h-10 rounded-full flex items-center justify-center bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-white transition-all group"
+          title="Exit Cinema"
         >
-          <BookOpen className="w-4 h-4" />
+          <X className="w-4 h-4 group-hover:rotate-90 transition-transform" />
         </button>
 
-        {/* Scene Navigation */}
-        <div className="flex flex-col gap-2">
-          <button disabled={isFirst} onClick={onPrevLine} className="w-10 h-10 rounded-full flex items-center justify-center bg-white/5 text-white/30 hover:bg-white/10 hover:text-white disabled:opacity-5 transition-all"><ChevronUp className="w-4 h-4" /></button>
-          <button disabled={isLast} onClick={onNextLine} className="w-10 h-10 rounded-full flex items-center justify-center bg-white/5 text-white/30 hover:bg-white/10 hover:text-white disabled:opacity-5 transition-all"><ChevronDown className="w-4 h-4" /></button>
+        <div className="h-6 w-px bg-white/10" />
+
+        {/* Playback Navigation */}
+        <div className="flex items-center gap-2">
+          <button 
+            disabled={isFirst} 
+            onClick={onPrevLine} 
+            className="w-9 h-9 rounded-full flex items-center justify-center bg-white/5 text-white/30 hover:bg-white/10 hover:text-white disabled:opacity-5 transition-all"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+          <button 
+            disabled={isLast} 
+            onClick={onNextLine} 
+            className="w-9 h-9 rounded-full flex items-center justify-center bg-white/5 text-white/30 hover:bg-white/10 hover:text-white disabled:opacity-5 transition-all"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
         </div>
 
-        <div className="h-px w-6 bg-white/10" />
+        <div className="h-6 w-px bg-white/10" />
 
-        {/* Explain Sentence (Sensei Insight) */}
-        <motion.button 
-          whileHover={{ scale: 1.1 }}
-          whileTap={{ scale: 0.9 }}
-          onClick={onExplain} 
-          disabled={isExplaining}
-          className={`w-12 h-12 rounded-full flex items-center justify-center transition-all bg-indigo-500 text-white shadow-lg shadow-indigo-500/40 relative group overflow-hidden`}
-          title="Explain Sentence"
-        >
-          {isExplaining ? <Loader2 className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />}
-          <div className="absolute inset-0 rounded-full bg-indigo-400 animate-pulse opacity-20 group-hover:opacity-40" />
-        </motion.button>
+        {/* Intelligence Tools */}
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={onToggleDictionary}
+            className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${isDictionaryOpen ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' : 'bg-white/5 text-white/40 hover:bg-white/10 hover:text-white'}`}
+            title="Frequency Dictionary"
+          >
+            <BookOpen className="w-4 h-4" />
+          </button>
 
-        {/* Volume / Music Toggle */}
-        <button 
-          onClick={(e) => { e.stopPropagation(); onToggleMute(); setShowVolumeSlider(!showVolumeSlider); }}
-          className={`w-10 h-10 rounded-full flex items-center justify-center transition-all relative ${isMuted ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/30' : 'bg-white/5 text-white/30 hover:text-white'}`}
-          title="Volume Control"
-        >
-          {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
-          {!isMuted && <div className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-emerald-400 border border-black" />}
-        </button>
+          <motion.button 
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={onExplain} 
+            disabled={isExplaining}
+            className={`w-11 h-11 rounded-full flex items-center justify-center transition-all bg-indigo-500 text-white shadow-lg shadow-indigo-500/20 relative group`}
+            title="Sensei Breakdown"
+          >
+            {isExplaining ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+          </motion.button>
+        </div>
 
-        {/* Mine Button (Primary Action) */}
+        <div className="h-6 w-px bg-white/10" />
+
+        {/* Capture Action */}
         <motion.button
-          whileHover={{ scale: 1.15, y: -2 }}
+          whileHover={{ scale: 1.1, y: -2 }}
           whileTap={{ scale: 0.9 }}
           onClick={onMine}
-          className="w-14 h-14 rounded-full flex items-center justify-center bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-2xl shadow-emerald-500/40 scale-110 group relative"
-          title="Capture Fragment"
+          className="px-5 h-11 rounded-full flex items-center gap-2 bg-gradient-to-r from-emerald-400 to-emerald-600 text-white shadow-lg shadow-emerald-500/30 group font-black text-[10px] uppercase tracking-widest"
+          title="Mine Word"
         >
-          <Pickaxe className="w-6 h-6 group-hover:-rotate-12 transition-transform" />
-          <div className="absolute -inset-1 rounded-full border border-emerald-500/30 animate-ping opacity-20" />
+          <Pickaxe className="w-4 h-4 group-hover:-rotate-12 transition-transform" />
+          <span>Mine</span>
         </motion.button>
-        
-        {/* Decorative Bottom Accent */}
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-rose-500/40" />
+
+        <div className="h-6 w-px bg-white/10" />
+
+        {/* Settings & Audio */}
+        <div className="flex items-center gap-2 relative">
+          <button 
+            onClick={onToggleSettings} 
+            className="w-10 h-10 rounded-full flex items-center justify-center bg-white/5 text-white/40 hover:bg-white/10 hover:text-white transition-all"
+          >
+            <Settings2 className="w-4 h-4" />
+          </button>
+          
+          <div className="relative group/vol">
+            <button 
+              onClick={onToggleMute}
+              onMouseEnter={() => setShowVolumeSlider(true)}
+              className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${isMuted ? 'bg-rose-500 text-white' : 'bg-white/5 text-white/40 hover:text-white'}`}
+            >
+              {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+            </button>
+            
+            {/* Horizontal Volume Popout */}
+            <AnimatePresence>
+              {showVolumeSlider && (
+                <motion.div 
+                  initial={{ width: 0, opacity: 0 }}
+                  animate={{ width: 100, opacity: 1 }}
+                  exit={{ width: 0, opacity: 0 }}
+                  onMouseLeave={() => setShowVolumeSlider(false)}
+                  className="absolute left-full ml-2 top-0 h-10 bg-black/80 backdrop-blur-xl border border-white/10 rounded-full flex items-center px-4 overflow-hidden shadow-2xl"
+                >
+                   <input 
+                    type="range" min="0" max="1" step="0.01" value={isMuted ? 0 : volume}
+                    onChange={(e) => onVolumeChange(parseFloat(e.target.value))}
+                    className="w-20 accent-rose-500 bg-white/10 h-1 rounded-full appearance-none cursor-pointer"
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </div>
       </div>
     </motion.div>
   );

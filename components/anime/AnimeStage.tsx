@@ -9,8 +9,8 @@ import { useProgressStore } from '../../store/progressStore';
 import { captureScreenshot, sliceAudio } from '../../services/miningService';
 import { explainToken } from '../../services/immersionService';
 import { dictionaryService } from '../../services/dictionaryService';
-import { Play as PlayIcon, CheckCircle2, Heart, Check, X, Maximize2, Volume2, VolumeX, BrainCircuit, Sparkles, Quote, Loader2, Timer, TrendingUp, Info, Rewind, FastForward, RotateCcw, Pause } from 'lucide-react';
-import { ImmersionToken, ExplanationCard } from '../../types/immersionSchema';
+import { Play as PlayIcon, Heart, Check, X, BrainCircuit, Sparkles, Quote, Loader2, Timer, TrendingUp, Network, Pause, BookOpen, ChevronRight, History } from 'lucide-react';
+import { ExplanationCard } from '../../types/immersionSchema';
 import FrequencyDock from './FrequencyDock';
 
 interface AnimeStageProps {
@@ -19,81 +19,26 @@ interface AnimeStageProps {
   total: number;
 }
 
-const GestureFeedback: React.FC<{ type: 'play' | 'pause' | 'next' | 'prev' | 'restart', x: number, y: number }> = ({ type, x, y }) => {
-  return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.5 }}
-      animate={{ opacity: 1, scale: 1.5 }}
-      exit={{ opacity: 0, scale: 2 }}
-      transition={{ duration: 0.5 }}
-      className="absolute pointer-events-none z-[100] flex items-center justify-center"
-      style={{ left: x - 40, top: y - 40, width: 80, height: 80 }}
-    >
-      <div className="w-full h-full rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center border border-white/40 shadow-2xl">
-        {type === 'play' && <PlayIcon className="w-10 h-10 text-white fill-white" />}
-        {type === 'pause' && <Pause className="w-10 h-10 text-white fill-white" />}
-        {type === 'next' && <FastForward className="w-10 h-10 text-white fill-white" />}
-        {type === 'prev' && <Rewind className="w-10 h-10 text-white fill-white" />}
-        {type === 'restart' && <RotateCcw className="w-10 h-10 text-white" />}
-      </div>
-    </motion.div>
-  );
-};
-
-const OffsetToast: React.FC<{ offset: number; visible: boolean }> = ({ offset, visible }) => (
-  <AnimatePresence>
-    {visible && (
-      <motion.div 
-        initial={{ opacity: 0, y: -20 }} 
-        animate={{ opacity: 1, y: 0 }} 
-        exit={{ opacity: 0 }}
-        className="fixed top-24 left-1/2 -translate-x-1/2 z-[200] px-6 py-2 rounded-full bg-black/60 backdrop-blur-xl border border-white/20 flex items-center gap-3 shadow-2xl"
-      >
-        <div className="p-1 rounded-full bg-rose-500/20">
-          <Timer className="w-3.5 h-3.5 text-rose-400" />
-        </div>
-        <span className="text-[10px] font-black uppercase tracking-[0.25em] text-white">
-          Sync Offset: <span className={offset === 0 ? 'text-white/40' : offset > 0 ? 'text-emerald-400' : 'text-rose-400'}>
-            {offset > 0 ? '+' : ''}{offset.toFixed(1)}s
-          </span>
-        </span>
-      </motion.div>
-    )}
-  </AnimatePresence>
+const LoadingWave: React.FC = () => (
+  <div className="flex items-center justify-center gap-2 h-16">
+    {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
+      <motion.div
+        key={i}
+        animate={{ 
+          height: [16, 64, 16],
+          backgroundColor: ["#fecdd3", "#f43f5e", "#fecdd3"]
+        }}
+        transition={{ 
+          duration: 1.2, 
+          repeat: Infinity, 
+          delay: i * 0.15,
+          ease: "easeInOut" 
+        }}
+        className="w-2 rounded-full"
+      />
+    ))}
+  </div>
 );
-
-const ExitConfirmation: React.FC<{
-  isOpen: boolean;
-  onConfirm: () => void;
-  onCancel: () => void;
-}> = ({ isOpen, onConfirm, onCancel }) => {
-  if (!isOpen) return null;
-  return (
-    <div className="fixed inset-0 z-[500] flex items-center justify-center p-4">
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-black/90 backdrop-blur-md" />
-      <motion.div 
-        initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-        className="relative w-full max-w-sm bg-[#fffcfc] rounded-[40px] shadow-2xl p-10 text-center border border-rose-100"
-      >
-        <div className="p-4 rounded-full bg-rose-50 text-rose-400 w-16 h-16 mx-auto mb-6 flex items-center justify-center">
-          <Heart className="w-8 h-8 fill-current" />
-        </div>
-        <h3 className="text-2xl font-bold font-coquette-header text-gray-800 mb-3">Record Progress?</h3>
-        <p className="text-sm text-gray-500 font-coquette-body italic mb-8 leading-relaxed">
-          "Shall we finalize this chapter in the Chronicle?"
-        </p>
-        <div className="flex flex-col gap-3">
-          <button onClick={onConfirm} className="w-full py-4 rounded-2xl bg-rose-500 text-white font-black uppercase tracking-widest text-xs shadow-lg hover:bg-rose-600 transition-all active:scale-95 flex items-center justify-center gap-2">
-            <Check className="w-4 h-4" /> Save and Exit
-          </button>
-          <button onClick={onCancel} className="w-full py-4 rounded-2xl bg-gray-50 text-gray-400 font-bold text-xs hover:bg-gray-100 transition-all uppercase tracking-widest">
-            Back to Immersion
-          </button>
-        </div>
-      </motion.div>
-    </div>
-  );
-};
 
 const SenseiModal: React.FC<{ 
   explanation: ExplanationCard | null; 
@@ -103,112 +48,115 @@ const SenseiModal: React.FC<{
   if (!explanation && !isLoading) return null;
 
   return (
-    <AnimatePresence>
-      <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[700] flex items-center justify-center p-4 md:p-8 pointer-events-auto">
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="absolute inset-0 bg-black/90 backdrop-blur-2xl" />
+      
+      {isLoading && !explanation ? (
         <motion.div 
-          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-          onClick={onClose}
-          className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-        />
-        <motion.div 
-          initial={{ scale: 0.9, opacity: 0, y: 20 }} 
-          animate={{ scale: 1, opacity: 1, y: 0 }} 
-          exit={{ scale: 0.9, opacity: 0, y: 20 }}
-          className="relative w-full max-w-4xl bg-white rounded-[40px] shadow-2xl border border-rose-100 overflow-hidden flex flex-col"
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0 }}
+          className="relative z-10 flex flex-col items-center justify-center gap-12 text-center"
         >
-          {isLoading && !explanation ? (
-            <div className="p-20 flex flex-col items-center justify-center gap-6 text-center">
-              <Loader2 className="w-12 h-12 text-rose-300 animate-spin" />
+          <LoadingWave />
+          <div className="space-y-4">
+            <h3 className="font-coquette-header text-5xl text-white italic font-bold tracking-tight">Sensei is deconstructing the manuscript...</h3>
+            <p className="text-sm uppercase tracking-[0.6em] text-rose-400 font-black animate-pulse">Linguistic Pattern Detection Active</p>
+          </div>
+        </motion.div>
+      ) : explanation && (
+        <motion.div 
+          initial={{ scale: 0.98, opacity: 0, y: 15 }} 
+          animate={{ scale: 1, opacity: 1, y: 0 }} 
+          exit={{ scale: 0.98, opacity: 0, y: 15 }}
+          className="relative w-full max-w-6xl bg-[#fffcfc] rounded-[40px] shadow-[0_40px_120px_rgba(0,0,0,0.7)] overflow-hidden flex flex-col max-h-[92vh] border border-rose-100/10"
+        >
+          <div className="px-10 py-6 border-b border-rose-100/50 flex justify-between items-center bg-white/40 shrink-0">
+            <div className="flex items-center gap-5">
+              <div className="p-3 bg-rose-50 rounded-2xl text-rose-400 shadow-sm border border-rose-100">
+                <BrainCircuit className="w-6 h-6" />
+              </div>
               <div>
-                <p className="font-coquette-rounded text-2xl text-gray-700 font-bold tracking-tight">Consulting the Sensei</p>
-                <p className="font-coquette-rounded text-rose-400 mt-2 font-medium">Deconstructing structure...</p>
+                <h3 className="font-coquette-header text-3xl font-bold text-gray-800 italic">Linguistic Manuscript</h3>
+                <p className="text-[9px] uppercase tracking-[0.4em] text-rose-400 font-black mt-1">Precise Morphological Analysis</p>
               </div>
             </div>
-          ) : explanation && (
-            <>
-              {/* Header */}
-              <div className="p-8 bg-rose-50/30 border-b border-rose-100 flex justify-between items-center">
-                <div className="flex items-center gap-5">
-                  <div className="p-3.5 bg-white rounded-2xl text-rose-400 shadow-sm border border-rose-50">
-                    <BrainCircuit className="w-7 h-7" />
-                  </div>
-                  <div>
-                    <h3 className="font-coquette-rounded text-2xl font-bold text-gray-800 leading-none">Breakdown Details</h3>
-                    <p className="text-[11px] uppercase tracking-[0.25em] text-rose-400 font-bold mt-2">
-                        {isLoading ? 'Streaming Analysis...' : 'Morphological Deconstruction'}
+            <button onClick={onClose} className="p-3 rounded-full hover:bg-rose-50 text-gray-300 hover:text-rose-400 transition-all">
+              <X className="w-7 h-7" />
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto custom-scrollbar p-8 space-y-8">
+            <div className="space-y-4">
+              {explanation.segments?.map((segment, index) => (
+                <motion.div 
+                  key={index}
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: index * 0.05 }}
+                  className={`flex flex-col lg:flex-row gap-6 p-6 rounded-[28px] border transition-all ${segment.isTarget ? 'bg-rose-50/40 border-rose-200' : 'bg-white border-rose-50/50'}`}
+                >
+                  <div className="lg:w-1/3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-[9px] font-black text-rose-300 uppercase tracking-widest">Phrase {index + 1}</span>
+                      {segment.jlptLevel && (
+                        <span className="px-2 py-0.5 rounded-lg bg-rose-500 text-white text-[9px] font-black tracking-widest shadow-sm">
+                          {segment.jlptLevel}
+                        </span>
+                      )}
+                    </div>
+                    <h4 className="text-3xl font-bold font-coquette-header text-gray-800 leading-tight">
+                      {segment.japanese}
+                    </h4>
+                    <p className="text-lg font-coquette-body text-rose-400 italic mt-2 leading-relaxed">
+                      {segment.meaning}
                     </p>
                   </div>
+
+                  <div className="lg:w-2/3 bg-white/60 rounded-2xl p-5 border border-rose-100/30 shadow-inner">
+                    <div className="flex items-center gap-2 mb-2 text-[9px] font-black text-gray-400 uppercase tracking-[0.2em]">
+                      <BookOpen className="w-3 h-3" /> The Grammar Chain
+                    </div>
+                    <div className="text-sm text-gray-600 font-coquette-rounded leading-relaxed whitespace-pre-wrap prose prose-sm prose-rose max-w-none">
+                      {segment.grammar_analysis}
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="relative p-8 rounded-[32px] bg-white border border-rose-100 shadow-lg overflow-hidden">
+                <div className="absolute top-0 left-0 w-1.5 h-full bg-rose-400" />
+                <div className="flex items-center gap-2.5 mb-4">
+                  <Quote className="w-5 h-5 text-rose-200" />
+                  <span className="text-[10px] font-black uppercase text-rose-300 tracking-[0.4em]">Simple Explanation</span>
                 </div>
-                <button onClick={onClose} className="p-3 rounded-full hover:bg-white text-gray-400 hover:text-rose-400 transition-colors">
-                  <X className="w-6 h-6" />
-                </button>
+                <p className="text-2xl md:text-3xl font-bold font-coquette-body text-gray-800 italic leading-snug">
+                  "{explanation.naturalTranslation}"
+                </p>
               </div>
 
-              {/* Breakdown List */}
-              <div className="p-8 space-y-6 overflow-y-auto max-h-[60vh] custom-scrollbar text-left bg-[#fffcfc]">
-                {explanation.segments?.map((segment, index) => (
-                  <motion.div 
-                    key={index} 
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.05 }}
-                    className={`relative p-6 rounded-3xl transition-all border ${segment.isTarget ? 'bg-emerald-50/40 border-emerald-100 shadow-sm' : 'bg-white border-gray-100 shadow-sm'}`}
-                  >
-                    {/* Header: Japanese + Romaji */}
-                    <div className="flex items-baseline gap-4 mb-4 border-b border-gray-100 pb-3">
-                      <span className={`text-2xl font-bold font-coquette-rounded tracking-wide ${segment.isTarget ? 'text-emerald-700' : 'text-gray-800'}`}>
-                        {segment.japanese}
-                      </span>
-                      <span className="text-sm text-rose-400 font-coquette-rounded font-semibold tracking-wide">
-                        {segment.romaji}
-                      </span>
-                    </div>
-
-                    {/* Content Grid */}
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                        {/* Meaning */}
-                        <div className="md:col-span-1">
-                            <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest block mb-1">Meaning</span>
-                            <span className="text-sm text-gray-700 font-medium font-coquette-body leading-relaxed">{segment.meaning || '---'}</span>
-                        </div>
-                        
-                        {/* Analysis */}
-                        <div className="md:col-span-3 bg-gray-50 p-3 rounded-xl border border-gray-100">
-                            <span className="text-[10px] font-black uppercase text-rose-300 tracking-widest block mb-1">Analysis</span>
-                            <span className="text-sm text-gray-600 font-sans leading-relaxed">{segment.grammar_analysis || '---'}</span>
-                        </div>
-                    </div>
-                  </motion.div>
-                ))}
-                {isLoading && (
-                    <div className="flex justify-center py-4">
-                        <Loader2 className="w-6 h-6 text-rose-300 animate-spin" />
-                    </div>
-                )}
-              </div>
-
-              {/* Footer: Simple Sentence Explanation */}
-              <div className="p-8 bg-rose-50/30 border-t border-rose-100">
-                 <div className="flex items-center gap-2 mb-4">
-                    <Quote className="w-5 h-5 text-rose-300" />
-                    <span className="text-[11px] font-black uppercase text-rose-400 tracking-[0.3em]">Simple Sentence Explanation</span>
+              <div className="p-8 rounded-[32px] bg-rose-900/5 border border-rose-100/50 flex gap-6 items-start">
+                 <Network className="w-6 h-6 text-rose-300 shrink-0 mt-1" />
+                 <div>
+                    <h5 className="text-[9px] font-black uppercase tracking-[0.3em] text-rose-400 mb-2">Sentence Visual Logic</h5>
+                    <p className="text-base font-coquette-body text-rose-900/60 leading-relaxed italic">
+                       {explanation.visualLogic}
+                    </p>
                  </div>
-                 
-                 <p className="text-xl md:text-2xl font-bold font-coquette-body text-gray-700 italic leading-relaxed">
-                    "{explanation.naturalTranslation || '...'}"
-                 </p>
               </div>
+            </div>
+          </div>
 
-              <div className="p-6 bg-gray-50/80 border-t border-gray-100 text-center">
-                 <button onClick={onClose} className="text-[11px] font-black uppercase tracking-[0.4em] text-gray-400 hover:text-rose-400 transition-colors">
-                    Close Analysis
-                 </button>
-              </div>
-            </>
-          )}
+          <div className="p-6 bg-gray-50/80 border-t border-rose-100/50 text-center shrink-0">
+             <button onClick={onClose} className="text-[10px] font-black uppercase tracking-[0.5em] text-gray-400 hover:text-rose-400 transition-all">
+                Dismiss Manuscript
+             </button>
+          </div>
         </motion.div>
-      </div>
-    </AnimatePresence>
+      )}
+    </div>
   );
 };
 
@@ -222,49 +170,25 @@ const AnimeStage: React.FC<AnimeStageProps> = ({ video, index, total }) => {
   const [isMining, setIsMining] = useState(false);
   const [isExplaining, setIsExplaining] = useState(false);
   const [explanation, setExplanation] = useState<ExplanationCard | null>(null);
-  const [showSavedToast, setShowSavedToast] = useState(false);
   const [isScrubbing, setIsScrubbing] = useState(false);
-  const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [volume, setVolume] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
   const [isDictionaryOpen, setIsDictionaryOpen] = useState(false); 
-  
-  const [showOffsetToast, setShowOffsetToast] = useState(false);
-  const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Gesture State
+  const [showOffsetIndicator, setShowOffsetIndicator] = useState(false);
   const lastTapRef = useRef<number>(0);
-  const tapCountRef = useRef<number>(0);
-  const tapTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [gestureFeedback, setGestureFeedback] = useState<{ type: 'play' | 'pause' | 'next' | 'prev' | 'restart', x: number, y: number } | null>(null);
 
-  const { 
-    videoSources, 
-    getSyncedNodes, 
-    addMinedCard, 
-    setViewMode, 
-    clearPlaylist, 
-    activeSeriesId, 
-    activeEpisodeNumber,
-    subtitleOffset,
-    setSubtitleOffset
-  } = useImmersionStore();
-  
-  const { startImmersionSession, endImmersionSession } = useProgressStore();
+  const { videoSources, getSyncedNodes, addMinedCard, setViewMode, clearPlaylist, subtitleOffset, setSubtitleOffset } = useImmersionStore();
+  const { startImmersionSession } = useProgressStore();
 
   if (!video) return null;
   const videoSrc = videoSources[video.videoId || video.id] || video.videoUrl;
   const dialogueData = useMemo(() => getSyncedNodes(), [video.nodes, video.dialogue, subtitleOffset]);
 
-  useEffect(() => {
-    if (!showExitConfirm) startImmersionSession();
-  }, []);
+  useEffect(() => { startImmersionSession(); }, []);
 
   const currentLineIndex = useMemo(() => {
     const syncTime = currentTime + 0.2;
-    return dialogueData.findIndex((node: any) => 
-      syncTime >= node.timestampStart && syncTime <= node.timestampEnd
-    );
+    return dialogueData.findIndex((node: any) => syncTime >= node.timestampStart && syncTime <= node.timestampEnd);
   }, [currentTime, dialogueData]);
 
   const currentLine = dialogueData[currentLineIndex];
@@ -273,194 +197,58 @@ const AnimeStage: React.FC<AnimeStageProps> = ({ video, index, total }) => {
     return currentLine.japanese.find((t: any) => t.groupId === activeGroupId) || null;
   }, [currentLine, activeGroupId]);
 
-  const seekToLine = useCallback((targetIndex: number) => {
-    if (targetIndex < 0 || targetIndex >= dialogueData.length || !videoRef.current) return;
-    const targetLine = dialogueData[targetIndex];
-    videoRef.current.currentTime = targetLine.timestampStart;
-    setCurrentTime(targetLine.timestampStart);
-    videoRef.current.play().catch(() => {});
-    setIsPaused(false);
-    setActiveGroupId(null);
-  }, [dialogueData]);
-
-  const togglePlayback = useCallback((e?: React.MouseEvent) => {
-    if (e) e.stopPropagation();
+  const togglePlayback = useCallback(() => {
     if (!videoRef.current) return;
-    if (videoRef.current.paused) {
-      videoRef.current.play().catch(() => {});
-      setIsPaused(false);
-      setActiveGroupId(null);
-    } else {
-      videoRef.current.pause();
-      setIsPaused(true);
-    }
+    if (videoRef.current.paused) { videoRef.current.play(); setIsPaused(false); setActiveGroupId(null); }
+    else { videoRef.current.pause(); setIsPaused(true); }
   }, []);
 
-  const handleNextLine = useCallback(() => {
-    if (currentLineIndex !== -1) {
-       seekToLine(currentLineIndex + 1);
+  const handleSeek = (e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) => {
+    if (!videoRef.current || !duration) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = 'touches' in e ? e.touches[0].clientX - rect.left : (e as React.MouseEvent).clientX - rect.left;
+    const pct = Math.max(0, Math.min(1, x / rect.width));
+    const targetTime = pct * duration;
+    videoRef.current.currentTime = targetTime;
+    setCurrentTime(targetTime);
+  };
+
+  /**
+   * Chronological Navigation Handler
+   * Scans for the closest segment start point to avoid index mismatches and resets.
+   */
+  const jumpToLineRelative = useCallback((direction: 'next' | 'prev') => {
+    if (!videoRef.current || dialogueData.length === 0) return;
+    
+    let targetIdx = -1;
+    if (direction === 'next') {
+      // Find the first line that starts AFTER current time
+      targetIdx = dialogueData.findIndex(n => n.timestampStart > currentTime + 0.3);
     } else {
-       const currentVideoTime = videoRef.current?.currentTime || 0;
-       const nextIdx = dialogueData.findIndex(n => n.timestampStart > currentVideoTime);
-       if (nextIdx !== -1) seekToLine(nextIdx);
-    }
-  }, [currentLineIndex, dialogueData, seekToLine]);
-
-  const handlePrevLine = useCallback(() => {
-    if (currentLineIndex !== -1) {
-       seekToLine(currentLineIndex - 1);
-    } else {
-       const currentVideoTime = videoRef.current?.currentTime || 0;
-       let prevIdx = -1;
-       for (let i = dialogueData.length - 1; i >= 0; i--) {
-           if (dialogueData[i].timestampStart < currentVideoTime) {
-               prevIdx = i;
-               break;
-           }
-       }
-       if (prevIdx !== -1) seekToLine(prevIdx);
-    }
-  }, [currentLineIndex, dialogueData, seekToLine]);
-
-  const handleRestartLine = useCallback(() => {
-    if (currentLineIndex !== -1) {
-       seekToLine(currentLineIndex);
-    } else {
-       handlePrevLine();
-    }
-  }, [currentLineIndex, seekToLine, handlePrevLine]);
-
-  const handleTouch = (e: React.TouchEvent | React.MouseEvent) => {
-    const now = Date.now();
-    let clientX, clientY;
-    if ('changedTouches' in e) {
-       clientX = e.changedTouches[0].clientX;
-       clientY = e.changedTouches[0].clientY;
-    } else {
-       clientX = (e as React.MouseEvent).clientX;
-       clientY = (e as React.MouseEvent).clientY;
+      // Find the last line that starts BEFORE current time
+      const candidates = [...dialogueData].reverse();
+      const reversedIdx = candidates.findIndex(n => n.timestampStart < currentTime - 1.0);
+      if (reversedIdx !== -1) targetIdx = dialogueData.length - 1 - reversedIdx;
     }
 
-    const width = window.innerWidth;
-    const isRightSide = clientX > width / 2;
-
-    if (now - lastTapRef.current < 300) {
-      tapCountRef.current += 1;
-    } else {
-      tapCountRef.current = 1;
+    if (targetIdx !== -1) {
+      const targetTime = dialogueData[targetIdx].timestampStart;
+      videoRef.current.currentTime = targetTime;
+      setCurrentTime(targetTime);
+      if (videoRef.current.paused) { videoRef.current.play(); setIsPaused(false); }
+      setActiveGroupId(null);
     }
-    lastTapRef.current = now;
-
-    if (tapTimeoutRef.current) clearTimeout(tapTimeoutRef.current);
-
-    const performAction = () => {
-        const count = tapCountRef.current;
-        tapCountRef.current = 0;
-
-        if (count === 1) {
-            if (isMuted && videoRef.current) {
-            }
-            togglePlayback();
-            setGestureFeedback({ type: videoRef.current?.paused ? 'play' : 'pause', x: clientX, y: clientY });
-        } else if (count === 2) {
-            if (isRightSide) {
-                handleNextLine(); 
-                setGestureFeedback({ type: 'next', x: clientX, y: clientY });
-            } else {
-                handleRestartLine();
-                setGestureFeedback({ type: 'restart', x: clientX, y: clientY });
-            }
-        } else if (count === 3) {
-             if (!isRightSide) {
-                 handlePrevLine();
-                 setGestureFeedback({ type: 'prev', x: clientX, y: clientY });
-             } else {
-                 handleNextLine();
-                 setGestureFeedback({ type: 'next', x: clientX, y: clientY });
-             }
-        }
-        setTimeout(() => setGestureFeedback(null), 600);
-    };
-
-    tapTimeoutRef.current = setTimeout(performAction, 300);
-  };
-
-  const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const time = parseFloat(e.target.value);
-    setCurrentTime(time);
-    if (videoRef.current) videoRef.current.currentTime = time;
-  };
-
-  const handleTokenClick = (groupId: number) => {
-    setActiveGroupId(groupId);
-    videoRef.current?.pause();
-    setIsPaused(true);
-    setIsDictionaryOpen(false); 
-  };
-
-  const handleTimeUpdate = () => {
-    if (videoRef.current && !isScrubbing) setCurrentTime(videoRef.current.currentTime);
-  };
-
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  const handleVolumeChange = (val: number) => {
-    setVolume(val);
-    if (videoRef.current) {
-      videoRef.current.volume = val;
-      if (val > 0) {
-        setIsMuted(false);
-        videoRef.current.muted = false;
-      } else {
-        setIsMuted(true);
-        videoRef.current.muted = true;
-      }
-    }
-  };
-
-  const handleToggleMute = () => {
-    const nextMute = !isMuted;
-    setIsMuted(nextMute);
-    if (videoRef.current) {
-      videoRef.current.muted = nextMute;
-      if (!nextMute && volume === 0) handleVolumeChange(0.5);
-    }
-  };
+  }, [dialogueData, currentTime]);
 
   const handleExplain = async () => {
     if (!currentLine || isExplaining) return;
-    
     const fullSentence = currentLine.japanese.map((t: any) => t.text).join('');
-    const targetWordToken = currentLine.japanese.find((t: any) => t.groupId === activeGroupId);
-    const targetPhrase = targetWordToken?.text || fullSentence;
     const groundTruthTranslation = currentLine.english.map((t: any) => t.text).join(' ');
-
-    setIsExplaining(true);
-    setExplanation(null);
+    setIsExplaining(true); setExplanation(null);
     try {
-      let localRank: number | null = null;
-      if (targetWordToken) {
-        const meta = await dictionaryService.getWordMeta(targetWordToken.baseForm || targetWordToken.text);
-        localRank = meta ? meta.rank : null;
-      }
-      
-      const data = await explainToken(
-        fullSentence, 
-        targetPhrase, 
-        groundTruthTranslation, 
-        localRank,
-        (partialData) => setExplanation(partialData)
-      );
+      const data = await explainToken(fullSentence, fullSentence, groundTruthTranslation, null, (partial) => setExplanation(partial));
       setExplanation(data);
-    } catch (e) { 
-      console.error(e); 
-    } finally { 
-      setIsExplaining(false); 
-    }
+    } catch (e) { console.error(e); } finally { setIsExplaining(false); }
   };
 
   const handleMine = async () => {
@@ -469,218 +257,187 @@ const AnimeStage: React.FC<AnimeStageProps> = ({ video, index, total }) => {
     try {
       const screenshot = await captureScreenshot(videoRef.current);
       const audioUrl = await sliceAudio(videoRef.current, currentLine.timestampStart, currentLine.timestampEnd);
-      const targetWordToken = currentLine.japanese.find((t: any) => t.groupId === activeGroupId);
-      
-      // Inject Source Episode if available
-      const sourceEpisode = activeEpisodeNumber || undefined;
-
-      addMinedCard({
-        id: crypto.randomUUID(),
-        sourceTitle: video.title,
-        sourceEpisode: sourceEpisode, // New Field
-        front: targetWordToken?.text || 'Fragment',
-        back: currentLine.japanese.map((t: any) => t.text).join(''),
-        translation: currentLine.english.filter((t: any) => t.groupId === activeGroupId).map((t: any) => t.text).join(' ') || 'Translation',
-        fullTranslation: currentLine.english.map((t: any) => t.text).join(' '),
-        image: screenshot,
-        audio: audioUrl,
-        timestamp: Date.now()
-      });
-      setShowSavedToast(true);
-      setTimeout(() => setShowSavedToast(false), 2000);
-    } catch (e) { console.error(e); } finally { setIsMining(false); }
+      addMinedCard({ id: crypto.randomUUID(), sourceTitle: video.title, front: activeToken?.text || 'Fragment', back: currentLine.japanese.map((t: any) => t.text).join(''), translation: currentLine.english.filter((t: any) => t.groupId === activeGroupId).map((t: any) => t.text).join(' ') || 'Translation', fullTranslation: currentLine.english.map((t: any) => t.text).join(' '), image: screenshot, audio: audioUrl, timestamp: Date.now() });
+    } finally { setIsMining(false); }
   };
 
-  const triggerOffsetChange = (amt: number) => {
-    setSubtitleOffset(parseFloat((subtitleOffset + amt).toFixed(1)));
-    setShowOffsetToast(true);
-    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
-    toastTimeoutRef.current = setTimeout(() => setShowOffsetToast(false), 1500);
-  };
+  const adjustOffset = useCallback((delta: number) => {
+    setSubtitleOffset(parseFloat((subtitleOffset + delta).toFixed(1)));
+    setShowOffsetIndicator(true);
+    setTimeout(() => setShowOffsetIndicator(false), 800);
+  }, [subtitleOffset, setSubtitleOffset]);
 
+  // --- KEYBOARD SHORTCUTS ---
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement;
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
-      if (showExitConfirm) return;
-
-      switch(e.code) {
+    const handleKeydown = (e: KeyboardEvent) => {
+      if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') return;
+      
+      switch (e.code) {
         case 'Space': e.preventDefault(); togglePlayback(); break;
-        case 'ArrowRight': case 'KeyD': e.preventDefault(); handleNextLine(); break;
-        case 'ArrowLeft': case 'KeyA':
-          e.preventDefault();
-          const currentVideoTime = videoRef.current?.currentTime || 0;
-          if (currentLineIndex !== -1) {
-             const activeLineStart = dialogueData[currentLineIndex].timestampStart;
-             if (currentVideoTime - activeLineStart < 1.0) handlePrevLine();
-             else handleRestartLine();
-          } else {
-             handlePrevLine();
-          }
-          break;
-        case 'ArrowUp': case 'KeyW': e.preventDefault(); triggerOffsetChange(0.1); break;
-        case 'ArrowDown': case 'KeyS': e.preventDefault(); triggerOffsetChange(-0.1); break;
-        case 'KeyX': e.preventDefault(); handleMine(); break;
-        case 'KeyC': e.preventDefault(); handleExplain(); break;
+        case 'KeyA': case 'ArrowLeft': jumpToLineRelative('prev'); break;
+        case 'KeyD': case 'ArrowRight': jumpToLineRelative('next'); break;
+        case 'KeyW': case 'ArrowUp': e.preventDefault(); adjustOffset(0.1); break;
+        case 'KeyS': case 'ArrowDown': e.preventDefault(); adjustOffset(-0.1); break;
+        case 'KeyE': handleExplain(); break;
+        case 'KeyR': handleMine(); break;
+        case 'KeyM': setIsMuted(!isMuted); if(videoRef.current) videoRef.current.muted = !isMuted; break;
       }
     };
+    window.addEventListener('keydown', handleKeydown);
+    return () => window.removeEventListener('keydown', handleKeydown);
+  }, [togglePlayback, jumpToLineRelative, adjustOffset, isMuted, handleExplain, handleMine]);
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentLineIndex, dialogueData, isExplaining, isMining, subtitleOffset, isPaused, showExitConfirm, handleNextLine, handlePrevLine, handleRestartLine, togglePlayback]);
-
-  const confirmExit = () => {
-    const summary = activeSeriesId 
-      ? `Immersed in ${video.title} (Ep ${activeEpisodeNumber})`
-      : `Immersed in ${video.title}`;
-    endImmersionSession(summary);
-    clearPlaylist();
-    setViewMode('standard');
-    setShowExitConfirm(false);
+  // --- TOUCH GESTURES (IPAD) ---
+  const handleTouch = (e: React.TouchEvent) => {
+    const now = Date.now();
+    const touchX = e.touches[0].clientX;
+    const screenWidth = window.innerWidth;
+    
+    if (now - lastTapRef.current < 300) {
+      if (touchX > screenWidth * 0.7) jumpToLineRelative('next');
+      else if (touchX < screenWidth * 0.3) jumpToLineRelative('prev');
+      lastTapRef.current = 0;
+    } else {
+      lastTapRef.current = now;
+    }
   };
 
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const isModalOpen = !!explanation || isExplaining;
+  const showUI = (isPaused || activeGroupId !== null) && !isMining && !isModalOpen;
+
   return (
-    <div className="h-[100dvh] w-screen bg-black relative overflow-hidden flex items-center justify-center">
+    <div className="h-[100dvh] w-screen bg-black relative overflow-hidden flex items-center justify-center" onTouchStart={handleTouch}>
       
-      <div 
-        className="absolute inset-0 z-30" 
-        onTouchStart={handleTouch}
-        onClick={(e) => { 
-            if (!('ontouchstart' in window)) handleTouch(e); 
-        }}
-        style={{ touchAction: 'manipulation' }}
-      />
+      {/* COMMAND BAR (TOP MIDDLE) - Strict Ghosting */}
+      <AnimatePresence>
+        {showUI && (
+          <ActionDock 
+            isVisible={true} 
+            onMine={handleMine} 
+            onExplain={handleExplain}
+            isExplaining={isExplaining}
+            onNextLine={() => jumpToLineRelative('next')} 
+            onPrevLine={() => jumpToLineRelative('prev')} 
+            isFirst={currentTime < (dialogueData[0]?.timestampStart || 0) + 1} 
+            isLast={currentTime > (dialogueData[dialogueData.length-1]?.timestampStart || 0) - 1} 
+            onToggleSettings={() => setIsSettingsOpen(!isSettingsOpen)} 
+            volume={volume}
+            onVolumeChange={(v) => { setVolume(v); if(videoRef.current) videoRef.current.volume = v; }}
+            isMuted={isMuted}
+            onToggleMute={() => { const m = !isMuted; setIsMuted(m); if(videoRef.current) videoRef.current.muted = m; }}
+            isDictionaryOpen={isDictionaryOpen}
+            onToggleDictionary={() => setIsDictionaryOpen(!isDictionaryOpen)}
+          />
+        )}
+      </AnimatePresence>
 
       <video 
         ref={videoRef} 
         src={videoSrc} 
-        onTimeUpdate={handleTimeUpdate} 
+        onTimeUpdate={() => !isScrubbing && setCurrentTime(videoRef.current?.currentTime || 0)} 
         onLoadedMetadata={() => setDuration(videoRef.current?.duration || 0)} 
-        className="w-full h-full object-contain pointer-events-none z-0" 
-        loop 
-        playsInline 
-        muted={isMuted} 
-        crossOrigin="anonymous" 
+        className="w-full h-full object-contain z-0" 
+        loop playsInline muted={isMuted} crossOrigin="anonymous" onClick={togglePlayback} 
       />
 
+      {/* SYNC OFFSET INDICATOR (Toast) */}
       <AnimatePresence>
-        {gestureFeedback && (
-           <GestureFeedback type={gestureFeedback.type} x={gestureFeedback.x} y={gestureFeedback.y} />
+        {showOffsetIndicator && (
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.8, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.8 }}
+            className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[400] bg-black/60 backdrop-blur-xl border border-rose-500/30 px-8 py-5 rounded-[32px] flex items-center gap-4 shadow-[0_0_50px_rgba(244,63,94,0.3)]"
+          >
+             <History className="w-6 h-6 text-rose-400" />
+             <div className="flex flex-col">
+                <span className="text-[10px] font-black uppercase text-rose-300 tracking-widest">Chronicle Offset</span>
+                <span className="text-3xl font-black font-mono text-white tracking-tighter">
+                   {subtitleOffset > 0 ? '+' : ''}{subtitleOffset.toFixed(1)}s
+                </span>
+             </div>
+          </motion.div>
         )}
       </AnimatePresence>
 
-      <OffsetToast offset={subtitleOffset} visible={showOffsetToast} />
-
-      <div className="absolute top-8 left-10 z-50 flex items-center gap-6 pointer-events-none">
-        <button onClick={() => setShowExitConfirm(true)} className="p-3 rounded-2xl bg-black/20 backdrop-blur-xl border border-white/10 text-white/40 hover:text-rose-400 hover:bg-rose-500/10 transition-all pointer-events-auto ui-interactable">
-           <X className="w-5 h-5" />
-        </button>
-      </div>
-
+      {/* THE RADICAL SCRUBBER (FLOATING CENTER BRIDGE) */}
       <AnimatePresence>
-        {(isPaused || activeGroupId !== null) && !isMining && !showExitConfirm && (
+        {showUI && (
           <motion.div 
-            initial={{ opacity: 0, y: 30 }} 
-            animate={{ opacity: 1, y: 0 }} 
-            exit={{ opacity: 0, y: 30 }} 
-            className="fixed bottom-24 left-1/2 -translate-x-1/2 w-full max-w-4xl z-[60] flex flex-col gap-3 pointer-events-none px-0"
+            initial={{ y: 50, opacity: 0 }} 
+            animate={{ y: 0, opacity: 1 }} 
+            exit={{ y: 50, opacity: 0 }} 
+            className="fixed bottom-20 left-1/2 -translate-x-1/2 w-full max-w-2xl px-10 z-[100]"
           >
-            <div className="flex items-center justify-between px-1 text-white/40 font-mono text-[10px] font-black tracking-[0.2em] uppercase">
-               <span>{formatTime(currentTime)}</span>
-               <span>{formatTime(duration)}</span>
-            </div>
-            <div className="relative group w-full h-10 flex items-center ui-interactable pointer-events-auto">
-              <div className="absolute w-full h-1.5 bg-white/10 rounded-full" />
-              <input 
-                type="range" 
-                min="0" 
-                max={duration || 100} 
-                step="0.1" 
-                value={currentTime} 
-                onMouseDown={() => setIsScrubbing(true)} 
-                onMouseUp={() => setIsScrubbing(false)} 
-                onChange={handleSeek} 
-                className="absolute w-full h-1.5 bg-transparent appearance-none cursor-pointer accent-rose-500 group-hover:h-2.5 transition-all outline-none z-20" 
-              />
-              <div 
-                className="h-1.5 bg-rose-500 rounded-full pointer-events-none transition-all group-hover:h-2.5 shadow-[0_0_15px_rgba(244,63,94,0.6)] z-10" 
-                style={{ width: `${(currentTime / (duration || 1)) * 100}%` }} 
-              />
+            <div className="bg-black/60 backdrop-blur-3xl border border-white/10 p-5 rounded-[32px] shadow-[0_20px_60px_rgba(0,0,0,0.8)]">
+              <div className="flex items-center gap-6">
+                <div className="px-3 py-1.5 rounded-xl bg-white/5 border border-white/5 font-mono text-xs font-black text-rose-400 tracking-tighter shrink-0">
+                  {formatTime(currentTime)}
+                </div>
+                <div 
+                  className="relative h-1.5 flex-1 cursor-pointer group"
+                  onMouseDown={(e) => { setIsScrubbing(true); handleSeek(e); }}
+                  onMouseMove={(e) => isScrubbing && handleSeek(e)}
+                  onMouseUp={() => setIsScrubbing(false)}
+                  onMouseLeave={() => setIsScrubbing(false)}
+                >
+                  <div className="absolute -inset-y-4 inset-x-0 bg-transparent" />
+                  <div className="absolute inset-0 bg-white/10 rounded-full" />
+                  <div 
+                    className="absolute inset-y-0 left-0 bg-rose-500 rounded-full shadow-[0_0_15px_rgba(244,63,94,0.6)] transition-all"
+                    style={{ width: `${(currentTime / (duration || 1)) * 100}%` }}
+                  />
+                  <motion.div 
+                    className="absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full shadow-[0_0_10px_white] scale-0 group-hover:scale-100 transition-transform"
+                    style={{ left: `${(currentTime / (duration || 1)) * 100}%`, marginLeft: '-8px' }}
+                  />
+                </div>
+                <div className="px-3 py-1.5 rounded-xl bg-white/5 border border-white/5 font-mono text-xs font-black text-white/30 tracking-tighter shrink-0">
+                  {formatTime(duration)}
+                </div>
+              </div>
+              <div className="mt-3 flex justify-center items-center gap-2 opacity-20">
+                <div className="h-1 w-1 rounded-full bg-white" />
+                <span className="text-[8px] font-black uppercase tracking-[0.5em] text-white">Live Chronicle Feed</span>
+                <div className="h-1 w-1 rounded-full bg-white" />
+              </div>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
       <AnimatePresence>
-        {currentLine && !showExitConfirm && (
-           <motion.div 
-             key={currentLine.id} 
-             initial={{ opacity: 0 }} 
-             animate={{ opacity: 1 }} 
-             exit={{ opacity: 0 }} 
-             className="absolute bottom-52 left-0 right-0 z-40 pointer-events-none flex justify-center items-center"
-           >
-             <SubtitleOverlay line={currentLine} activeGroupId={activeGroupId} onTokenClick={handleTokenClick} isPaused={isPaused} />
-           </motion.div>
+        {currentLine && !isModalOpen && (
+          <motion.div 
+            key={currentLine.id} 
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
+            exit={{ opacity: 0 }} 
+            className="absolute bottom-60 left-0 right-0 z-40 pointer-events-none flex justify-center items-center"
+          >
+            <SubtitleOverlay line={currentLine} activeGroupId={activeGroupId} onTokenClick={(id) => { setActiveGroupId(id); videoRef.current?.pause(); setIsPaused(true); }} isPaused={isPaused} />
+          </motion.div>
         )}
       </AnimatePresence>
 
-      <div className="ui-interactable relative z-[70]">
-        <AnimatePresence>
-          {isDictionaryOpen && activeToken && (
-             <FrequencyDock targetToken={activeToken} episodeNodes={dialogueData} />
-          )}
-        </AnimatePresence>
-        
-        <ActionDock 
-          isVisible={isPaused || activeGroupId !== null} 
-          onMine={handleMine} 
-          onExplain={handleExplain}
-          isExplaining={isExplaining}
-          onNextLine={handleNextLine} 
-          onPrevLine={handlePrevLine} 
-          isFirst={currentLineIndex <= 0} 
-          isLast={currentLineIndex >= dialogueData.length - 1} 
-          onToggleSettings={() => setIsSettingsOpen(!isSettingsOpen)} 
-          volume={volume}
-          onVolumeChange={handleVolumeChange}
-          isMuted={isMuted}
-          onToggleMute={handleToggleMute}
-          isDictionaryOpen={isDictionaryOpen}
-          onToggleDictionary={() => setIsDictionaryOpen(!isDictionaryOpen)}
-        />
-      </div>
-
-      <SyncManagerWrapper isOpen={isSettingsOpen} />
-      <ExitConfirmation isOpen={showExitConfirm} onConfirm={confirmExit} onCancel={() => setShowExitConfirm(false)} />
-      <SenseiModal explanation={explanation} isLoading={isExplaining} onClose={() => setExplanation(null)} />
+      <AnimatePresence>{isDictionaryOpen && activeToken && <div className="fixed left-8 top-1/2 -translate-y-1/2 z-[150]"><FrequencyDock targetToken={activeToken} episodeNodes={dialogueData} /></div>}</AnimatePresence>
+      <AnimatePresence>{isSettingsOpen && <div className="fixed top-28 right-10 z-[150] w-80"><SyncManager /></div>}</AnimatePresence>
+      <AnimatePresence>{isModalOpen && <SenseiModal explanation={explanation} isLoading={isExplaining} onClose={() => setExplanation(null)} />}</AnimatePresence>
       
       <AnimatePresence>
         {isMining && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-black/80 backdrop-blur-xl z-[500] flex flex-col items-center justify-center gap-8">
-             <div className="w-16 h-16 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin shadow-[0_0_20px_rgba(16,185,129,0.2)]" />
-             <p className="text-emerald-400 font-black uppercase tracking-[0.5em] text-xs animate-pulse">Extracting Lexical Data</p>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-black/40 backdrop-blur-sm z-[600] flex flex-col items-center justify-center">
+             <Loader2 className="w-12 h-12 text-rose-400 animate-spin" />
+             <p className="mt-4 text-[10px] font-black uppercase tracking-[0.4em] text-rose-400">Mining Lexical Evidence</p>
           </motion.div>
         )}
       </AnimatePresence>
     </div>
   );
 };
-
-const SyncManagerWrapper: React.FC<{ isOpen: boolean }> = ({ isOpen }) => (
-  <AnimatePresence>
-    {isOpen && (
-      <motion.div 
-        initial={{ x: 300, opacity: 0 }} 
-        animate={{ x: 0, opacity: 1 }} 
-        exit={{ x: 300, opacity: 0 }} 
-        className="fixed top-24 right-10 z-[150] w-80 pointer-events-auto ui-interactable" 
-        onClick={(e) => e.stopPropagation()}
-      >
-         <SyncManager />
-      </motion.div>
-    )}
-  </AnimatePresence>
-);
 
 export default AnimeStage;

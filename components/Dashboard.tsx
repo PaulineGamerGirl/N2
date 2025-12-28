@@ -16,16 +16,19 @@ interface DashboardProps {
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ onOpenLogModal }) => {
-  const { baseVocab, manualVocabCount, masteredChapters, grammarDatabase, streak, completedDates, keepsakes, vocabCount: legacyVocabCount } = useProgressStore();
+  const { baseVocab, manualVocabCount, masteredChapters, grammarDatabase, streak, completedDates, keepsakes } = useProgressStore();
   const [isYearlyModalOpen, setIsYearlyModalOpen] = useState(false);
   const [isDataModalOpen, setIsDataModalOpen] = useState(false);
   const [currentDate, setCurrentDate] = useState(new Date());
 
-  // --- NEW DETERMINISTIC VOCAB CALCULATION ---
+  // --- DETERMINISTIC VOCAB CALCULATION ---
+  // Starts at baseVocab (2500) and grows by 20 for every heart in the calendar.
   const calculatedVocab = useMemo(() => {
     const heartCount = Object.keys(completedDates || {}).length;
-    return (baseVocab || legacyVocabCount || 2500) + (manualVocabCount || 0) + (heartCount * 20);
-  }, [baseVocab, legacyVocabCount, manualVocabCount, completedDates]);
+    const base = baseVocab || 2500;
+    const fromDiary = manualVocabCount || 0;
+    return base + fromDiary + (heartCount * 20);
+  }, [baseVocab, manualVocabCount, completedDates]);
 
   // --- AGGREGATED STUDY METRICS ---
   const [liveMetrics, setLiveMetrics] = useState({
@@ -79,7 +82,6 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenLogModal }) => {
   const calculateRawImmersionMinutes = (items: Keepsake[]) => {
     let rawMinutes = 0;
     items.forEach(item => {
-      // Manga volumes are estimated at 45 mins each
       const itemMins = item.type === 'MANGA' ? (item.durationOrVolumes * 45) : item.durationOrVolumes;
       rawMinutes += itemMins || 0;
     });
@@ -90,10 +92,9 @@ const Dashboard: React.FC<DashboardProps> = ({ onOpenLogModal }) => {
   const rawTimerMins = (liveMetrics.immersion / 60);
   const totalRawImmersionMins = rawKeepsakeMins + rawTimerMins;
   
-  // Effective Immersion (x3 Multiplier for Card Metric)
   const totalEffectiveImmersionHours = (totalRawImmersionMins * 3) / 60;
 
-  // --- TOTAL STUDY CALCULATION (Actual Clock Time) ---
+  // --- TOTAL STUDY CALCULATION ---
   const outputHours = liveMetrics.output / 3600;
   const grammarHours = liveMetrics.grammar / 3600;
   const ankiHours = liveMetrics.anki / 3600;

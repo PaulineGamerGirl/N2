@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Save, Star, Trash2, AlertCircle, Calendar, Image as ImageIcon, CheckCircle2, Circle, MonitorPlay, Sparkles } from 'lucide-react';
+import { X, Save, Star, Trash2, AlertCircle, Calendar, Image as ImageIcon, CheckCircle2, Circle, MonitorPlay, Sparkles, Copy, Check } from 'lucide-react';
 import { useProgressStore, Keepsake, MediaType, MediaStatus } from '../store/progressStore';
 import { useImmersionStore } from '../store/useImmersionStore';
 
@@ -17,6 +17,7 @@ const LogMemoryModal: React.FC<LogMemoryModalProps> = ({ isOpen, onClose, editin
   const { addSeries, removeSeries } = useImmersionStore();
 
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [copied, setCopied] = useState(false);
   const [title, setTitle] = useState('');
   const [type, setType] = useState<MediaType>('ANIME');
   const [status, setStatus] = useState<MediaStatus>('ONGOING');
@@ -59,8 +60,16 @@ const LogMemoryModal: React.FC<LogMemoryModalProps> = ({ isOpen, onClose, editin
         setTotalEpisodes('24');
       }
       setConfirmDelete(false);
+      setCopied(false);
     }
   }, [editingId, isOpen, forcedTheaterMode, keepsakes]);
+
+  const handleCopyId = () => {
+    if (!editingId) return;
+    navigator.clipboard.writeText(editingId);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   const handleRemove = () => {
     if (!editingId) return;
@@ -139,6 +148,30 @@ const LogMemoryModal: React.FC<LogMemoryModalProps> = ({ isOpen, onClose, editin
           </div>
 
           <form onSubmit={handleSave} className="flex-1 overflow-y-auto p-10 space-y-8 custom-scrollbar">
+            
+            {/* SYNC SECTION: SERIES ID (Visible only in edit mode) */}
+            {editingId && (
+              <div className="bg-rose-50/50 p-6 rounded-[32px] border border-rose-100 shadow-sm space-y-3">
+                <div className="flex items-center justify-between">
+                   <div className="flex items-center gap-2">
+                      <MonitorPlay className="w-4 h-4 text-rose-400" />
+                      <label className="text-[10px] font-black uppercase text-rose-400 tracking-[0.2em]">Series Identification</label>
+                   </div>
+                   <button 
+                     type="button"
+                     onClick={handleCopyId}
+                     className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold transition-all ${copied ? 'bg-emerald-500 text-white shadow-md' : 'bg-white border border-rose-200 text-rose-400 hover:bg-rose-50'}`}
+                   >
+                     {copied ? <><Check className="w-3 h-3" /> Copied!</> : <><Copy className="w-3 h-3" /> Copy ID</>}
+                   </button>
+                </div>
+                <div className="p-3 bg-white rounded-xl border border-rose-100 text-[11px] font-mono text-gray-500 break-all select-all">
+                  {editingId}
+                </div>
+                <p className="text-[9px] text-rose-300 font-medium italic">"Use this ID in the Analyzer Tool to link your episodes perfectly."</p>
+              </div>
+            )}
+
             <div className="bg-white p-5 rounded-[32px] border border-rose-100 shadow-sm space-y-4">
               <label className="block text-[10px] font-black uppercase text-gray-400 tracking-[0.2em] ml-2">Current Progress</label>
               <div className="flex items-center gap-4 bg-gray-50/50 p-2 rounded-2xl border border-gray-100">
