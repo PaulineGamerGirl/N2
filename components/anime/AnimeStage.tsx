@@ -227,7 +227,7 @@ const AnimeStage: React.FC<AnimeStageProps> = ({ video, index, total }) => {
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [volume, setVolume] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
-  const [isDictionaryOpen, setIsDictionaryOpen] = useState(false); // Default closed
+  const [isDictionaryOpen, setIsDictionaryOpen] = useState(false); 
   
   const [showOffsetToast, setShowOffsetToast] = useState(false);
   const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -296,12 +296,10 @@ const AnimeStage: React.FC<AnimeStageProps> = ({ video, index, total }) => {
     }
   }, []);
 
-  // --- REFINED NAVIGATION HELPERS ---
   const handleNextLine = useCallback(() => {
     if (currentLineIndex !== -1) {
        seekToLine(currentLineIndex + 1);
     } else {
-       // Smart Seek: If in a gap, find next line that starts after current time
        const currentVideoTime = videoRef.current?.currentTime || 0;
        const nextIdx = dialogueData.findIndex(n => n.timestampStart > currentVideoTime);
        if (nextIdx !== -1) seekToLine(nextIdx);
@@ -328,17 +326,12 @@ const AnimeStage: React.FC<AnimeStageProps> = ({ video, index, total }) => {
     if (currentLineIndex !== -1) {
        seekToLine(currentLineIndex);
     } else {
-       handlePrevLine(); // Fallback to previous if in a gap
+       handlePrevLine();
     }
   }, [currentLineIndex, seekToLine, handlePrevLine]);
 
-  // --- GESTURE LOGIC ---
   const handleTouch = (e: React.TouchEvent | React.MouseEvent) => {
-    // If user clicks UI controls (with stopPropagation), this won't fire.
-    // This fires on the "Gesture Layer"
     const now = Date.now();
-    
-    // Normalize coordinates for mouse vs touch
     let clientX, clientY;
     if ('changedTouches' in e) {
        clientX = e.changedTouches[0].clientX;
@@ -365,41 +358,30 @@ const AnimeStage: React.FC<AnimeStageProps> = ({ video, index, total }) => {
         tapCountRef.current = 0;
 
         if (count === 1) {
-            // Single Tap: Toggle Play
-            // Check if muted, iOS requires user interaction to unmute audio context sometimes
             if (isMuted && videoRef.current) {
-                // Optional: Auto-unmute on first tap? 
-                // For now just play/pause
             }
             togglePlayback();
-            // Show feedback based on resulting state (approximated)
             setGestureFeedback({ type: videoRef.current?.paused ? 'play' : 'pause', x: clientX, y: clientY });
         } else if (count === 2) {
             if (isRightSide) {
-                // Double Tap Right: Next Line
                 handleNextLine(); 
                 setGestureFeedback({ type: 'next', x: clientX, y: clientY });
             } else {
-                // Double Tap Left: Restart Line
                 handleRestartLine();
                 setGestureFeedback({ type: 'restart', x: clientX, y: clientY });
             }
         } else if (count === 3) {
              if (!isRightSide) {
-                 // Triple Tap Left: Prev Line
                  handlePrevLine();
                  setGestureFeedback({ type: 'prev', x: clientX, y: clientY });
              } else {
-                 // Triple Tap Right: Treat as Next Line (fallback)
                  handleNextLine();
                  setGestureFeedback({ type: 'next', x: clientX, y: clientY });
              }
         }
-        // Reset feedback after animation
         setTimeout(() => setGestureFeedback(null), 600);
     };
 
-    // Wait 300ms to see if more taps come
     tapTimeoutRef.current = setTimeout(performAction, 300);
   };
 
@@ -409,24 +391,10 @@ const AnimeStage: React.FC<AnimeStageProps> = ({ video, index, total }) => {
     if (videoRef.current) videoRef.current.currentTime = time;
   };
 
-  const handleBackgroundClick = (e: React.MouseEvent) => {
-    // Legacy click handler replaced by Gesture Layer, but kept if needed for bubbling
-    if ((e.target as HTMLElement).closest('.ui-interactable')) return;
-    if (isSettingsOpen) { setIsSettingsOpen(false); return; }
-    if (activeGroupId !== null) {
-      setActiveGroupId(null);
-      videoRef.current?.play();
-      setIsPaused(false);
-      return;
-    }
-    // handleTouch is now the primary driver
-  };
-
   const handleTokenClick = (groupId: number) => {
     setActiveGroupId(groupId);
     videoRef.current?.pause();
     setIsPaused(true);
-    // Explicitly do NOT open dictionary here to allow manual control.
     setIsDictionaryOpen(false); 
   };
 
@@ -472,22 +440,20 @@ const AnimeStage: React.FC<AnimeStageProps> = ({ video, index, total }) => {
     const groundTruthTranslation = currentLine.english.map((t: any) => t.text).join(' ');
 
     setIsExplaining(true);
-    setExplanation(null); // Reset for new stream
+    setExplanation(null);
     try {
-      // Fetch rank locally first to pass into the prompt
       let localRank: number | null = null;
       if (targetWordToken) {
         const meta = await dictionaryService.getWordMeta(targetWordToken.baseForm || targetWordToken.text);
         localRank = meta ? meta.rank : null;
       }
       
-      // Streaming Call: Passes a callback that updates the state on every chunk
       const data = await explainToken(
         fullSentence, 
         targetPhrase, 
         groundTruthTranslation, 
         localRank,
-        (partialData) => setExplanation(partialData) // Real-time update hook
+        (partialData) => setExplanation(partialData)
       );
       setExplanation(data);
     } catch (e) { 
@@ -504,9 +470,14 @@ const AnimeStage: React.FC<AnimeStageProps> = ({ video, index, total }) => {
       const screenshot = await captureScreenshot(videoRef.current);
       const audioUrl = await sliceAudio(videoRef.current, currentLine.timestampStart, currentLine.timestampEnd);
       const targetWordToken = currentLine.japanese.find((t: any) => t.groupId === activeGroupId);
+      
+      // Inject Source Episode if available
+      const sourceEpisode = activeEpisodeNumber || undefined;
+
       addMinedCard({
         id: crypto.randomUUID(),
         sourceTitle: video.title,
+        sourceEpisode: sourceEpisode, // New Field
         front: targetWordToken?.text || 'Fragment',
         back: currentLine.japanese.map((t: any) => t.text).join(''),
         translation: currentLine.english.filter((t: any) => t.groupId === activeGroupId).map((t: any) => t.text).join(' ') || 'Translation',
@@ -527,7 +498,6 @@ const AnimeStage: React.FC<AnimeStageProps> = ({ video, index, total }) => {
     toastTimeoutRef.current = setTimeout(() => setShowOffsetToast(false), 1500);
   };
 
-  // --- KEYBOARD HOTKEYS ---
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
@@ -535,19 +505,10 @@ const AnimeStage: React.FC<AnimeStageProps> = ({ video, index, total }) => {
       if (showExitConfirm) return;
 
       switch(e.code) {
-        case 'Space':
+        case 'Space': e.preventDefault(); togglePlayback(); break;
+        case 'ArrowRight': case 'KeyD': e.preventDefault(); handleNextLine(); break;
+        case 'ArrowLeft': case 'KeyA':
           e.preventDefault();
-          togglePlayback();
-          break;
-        case 'ArrowRight':
-        case 'KeyD':
-          e.preventDefault();
-          handleNextLine();
-          break;
-        case 'ArrowLeft':
-        case 'KeyA':
-          e.preventDefault();
-          // Logic for A key combines prev/restart based on timing, similar to handleRestartLine logic but slightly different preference
           const currentVideoTime = videoRef.current?.currentTime || 0;
           if (currentLineIndex !== -1) {
              const activeLineStart = dialogueData[currentLineIndex].timestampStart;
@@ -557,24 +518,10 @@ const AnimeStage: React.FC<AnimeStageProps> = ({ video, index, total }) => {
              handlePrevLine();
           }
           break;
-        case 'ArrowUp':
-        case 'KeyW':
-          e.preventDefault();
-          triggerOffsetChange(0.1);
-          break;
-        case 'ArrowDown':
-        case 'KeyS':
-          e.preventDefault();
-          triggerOffsetChange(-0.1);
-          break;
-        case 'KeyX':
-          e.preventDefault();
-          handleMine();
-          break;
-        case 'KeyC':
-          e.preventDefault();
-          handleExplain();
-          break;
+        case 'ArrowUp': case 'KeyW': e.preventDefault(); triggerOffsetChange(0.1); break;
+        case 'ArrowDown': case 'KeyS': e.preventDefault(); triggerOffsetChange(-0.1); break;
+        case 'KeyX': e.preventDefault(); handleMine(); break;
+        case 'KeyC': e.preventDefault(); handleExplain(); break;
       }
     };
 
@@ -595,19 +542,15 @@ const AnimeStage: React.FC<AnimeStageProps> = ({ video, index, total }) => {
   return (
     <div className="h-[100dvh] w-screen bg-black relative overflow-hidden flex items-center justify-center">
       
-      {/* Gesture Input Layer - Transparent overlay for catching taps */}
       <div 
         className="absolute inset-0 z-30" 
         onTouchStart={handleTouch}
         onClick={(e) => { 
-            // Fallback for mouse users testing on desktop
             if (!('ontouchstart' in window)) handleTouch(e); 
         }}
-        // Prevent browser zoom behaviors
         style={{ touchAction: 'manipulation' }}
       />
 
-      {/* Video Layer */}
       <video 
         ref={videoRef} 
         src={videoSrc} 
@@ -620,24 +563,20 @@ const AnimeStage: React.FC<AnimeStageProps> = ({ video, index, total }) => {
         crossOrigin="anonymous" 
       />
 
-      {/* Visual Gesture Feedback */}
       <AnimatePresence>
         {gestureFeedback && (
            <GestureFeedback type={gestureFeedback.type} x={gestureFeedback.x} y={gestureFeedback.y} />
         )}
       </AnimatePresence>
 
-      {/* FIXED ALIGNMENT: SYSTEM ALERTS */}
       <OffsetToast offset={subtitleOffset} visible={showOffsetToast} />
 
-      {/* TOP LEFT ACTIONS */}
       <div className="absolute top-8 left-10 z-50 flex items-center gap-6 pointer-events-none">
         <button onClick={() => setShowExitConfirm(true)} className="p-3 rounded-2xl bg-black/20 backdrop-blur-xl border border-white/10 text-white/40 hover:text-rose-400 hover:bg-rose-500/10 transition-all pointer-events-auto ui-interactable">
            <X className="w-5 h-5" />
         </button>
       </div>
 
-      {/* REFINED ALIGNMENT: SEEKER / SCRUBBER */}
       <AnimatePresence>
         {(isPaused || activeGroupId !== null) && !isMining && !showExitConfirm && (
           <motion.div 
@@ -651,9 +590,7 @@ const AnimeStage: React.FC<AnimeStageProps> = ({ video, index, total }) => {
                <span>{formatTime(duration)}</span>
             </div>
             <div className="relative group w-full h-10 flex items-center ui-interactable pointer-events-auto">
-              {/* Outer track for visual reference */}
               <div className="absolute w-full h-1.5 bg-white/10 rounded-full" />
-              
               <input 
                 type="range" 
                 min="0" 
@@ -665,7 +602,6 @@ const AnimeStage: React.FC<AnimeStageProps> = ({ video, index, total }) => {
                 onChange={handleSeek} 
                 className="absolute w-full h-1.5 bg-transparent appearance-none cursor-pointer accent-rose-500 group-hover:h-2.5 transition-all outline-none z-20" 
               />
-              {/* STABLE RED LINE TRACKER */}
               <div 
                 className="h-1.5 bg-rose-500 rounded-full pointer-events-none transition-all group-hover:h-2.5 shadow-[0_0_15px_rgba(244,63,94,0.6)] z-10" 
                 style={{ width: `${(currentTime / (duration || 1)) * 100}%` }} 
@@ -675,7 +611,6 @@ const AnimeStage: React.FC<AnimeStageProps> = ({ video, index, total }) => {
         )}
       </AnimatePresence>
 
-      {/* REFINED ALIGNMENT: SUBTITLES */}
       <AnimatePresence>
         {currentLine && !showExitConfirm && (
            <motion.div 
@@ -690,7 +625,6 @@ const AnimeStage: React.FC<AnimeStageProps> = ({ video, index, total }) => {
         )}
       </AnimatePresence>
 
-      {/* DYNAMIC DOCKS */}
       <div className="ui-interactable relative z-[70]">
         <AnimatePresence>
           {isDictionaryOpen && activeToken && (

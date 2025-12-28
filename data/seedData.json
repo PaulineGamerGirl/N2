@@ -2,7 +2,7 @@
 {
   "meta": {
     "app": "nihongo-nexus",
-    "version": 2,
+    "version": 4,
     "timestamp": "2025-12-22T10:00:20.596Z",
     "deviceName": "Windows NT 10.0; Win64; x64"
   },
@@ -24,24 +24,6 @@
               "point": "XはYです (X wa Y desu)",
               "meaning": "\"The particle \"\"wa\"\" (は) marks the topic of the sentence—what you are talking about. The structure \"\"X wa Y desu\"\" equates X with Y (X is Y). \"\"Desu\"\" functions as the polite copula (is/am/are). Unlike English, the verb always comes at the end of the sentence.\"",
               "sentences": "私は学生です。<br>I am a student.<br><br>専攻は日本語です。<br>My major is Japanese.<br><br>電話番号は何番ですか。<br>What is your telephone number?"
-            },
-            {
-              "id": "m9piaknig",
-              "point": "Question Particle か (Ka)",
-              "meaning": "\"Japanese turns a statement into a question simply by adding the particle \"\"ka\"\" at the very end. No word order change is needed (unlike English where you move \"\"is\"\" to the front). The intonation usually rises at the end.\"",
-              "sentences": "あなたは留学生ですか。<br>Are you an international student?<br><br>専攻はなんですか。<br>What is your major?<br><br>今、何時ですか。<br>What time is it now?"
-            },
-            {
-              "id": "kd8opyp4j",
-              "point": "Noun の Noun (Possession)",
-              "meaning": "\"The particle \"\"no\"\" (の) connects two nouns. It acts like an apostrophe-s ('s) or \"\"of\"\" in English. The first noun modifies the second one. \"\"Noun1 no Noun2\"\" means Noun2 belongs to, or is described by, Noun1. The main idea is always the second noun.\"",
-              "sentences": "たけしさんの電話番号<br>Takeshi's phone number<br><br>東京大学の学生<br>A student of Tokyo University<br><br>日本語の先生<br>A teacher of Japanese (Japanese language teacher)"
-            },
-            {
-              "id": "cpxjfrswa",
-              "point": "Time Reference (Xji Yfun)",
-              "meaning": "\"Japanese tells time by listing the hour (ji) followed by the minute (fun/pun). The minute counter changes pronunciation (fun vs pun) depending on the number before it. \"\"Han\"\" is used for \"\"half past\"\".\"",
-              "sentences": "今、九時です。<br>It is 9 o'clock now.<br><br>十二時半です。<br>It is 12:30 (half past twelve).<br><br>四時五分です。<br>It is 4:05."
             }
           ]
         },
@@ -51,16 +33,30 @@
         },
         "keepsakes": [
           {
-            "id": "75757713-c184-4fef-9fcd-740a4208a223",
+            "id": "summer-hikaru-placeholder",
+            "title": "The Summer Hikaru Died",
+            "type": "ANIME",
+            "status": "ONGOING",
+            "coverUrl": "https://i.pinimg.com/736x/74/b5/4b/74b54b55d8c4972a5223df826861c9bb.jpg",
+            "rating": 0,
+            "caption": "",
+            "durationOrVolumes": 120,
+            "dateAdded": "2025-12-22",
+            "dateCompleted": "",
+            "showInTheater": true,
+            "totalEpisodes": 12
+          },
+          {
+            "id": "death-note-placeholder",
             "title": "Death Note",
             "type": "ANIME",
             "status": "ONGOING",
             "coverUrl": "https://i.pinimg.com/736x/f3/c5/26/f3c5262b088541744643cf1bc2ad75fb.jpg",
             "rating": 5,
-            "caption": "I am SEATED. The logic battles are absolutely peak!",
-            "durationOrVolumes": 83,
-            "dateCompleted": "2025-12-22",
+            "caption": "i am SEATED ohmygod so many plot twist",
+            "durationOrVolumes": 455,
             "dateAdded": "2025-12-22",
+            "dateCompleted": "2025-12-22",
             "showInTheater": true,
             "totalEpisodes": 37
           }
@@ -69,19 +65,25 @@
           {
             "timestamp": 1766394194775,
             "category": "IMMERSION",
-            "durationMinutes": 51,
-            "summary": "Immersed with Death Note for 51m",
+            "durationMinutes": 455,
+            "summary": "Immersed with Death Note for 455m",
             "id": "a7e135ee-6d94-4dac-b0dd-fd9c52437c9a"
           }
         ]
       },
-      "version": 7
+      "version": 9
     },
     "nihongo-nexus-immersion-v3": {
       "state": {
         "series": [
           {
-            "id": "75757713-c184-4fef-9fcd-740a4208a223",
+            "id": "summer-hikaru-placeholder",
+            "title": "The Summer Hikaru Died",
+            "totalEpisodes": 12,
+            "coverUrl": "https://i.pinimg.com/736x/74/b5/4b/74b54b55d8c4972a5223df826861c9bb.jpg"
+          },
+          {
+            "id": "death-note-placeholder",
             "title": "Death Note",
             "totalEpisodes": 37,
             "coverUrl": "https://i.pinimg.com/736x/f3/c5/26/f3c5262b088541744643cf1bc2ad75fb.jpg"
@@ -93,11 +95,11 @@
         "subtitleOffset": 0,
         "metadataHydratedIds": []
       },
-      "version": 1
+      "version": 2
     },
     "messenger_total_time": 2329,
     "grammar_total_time": 4319,
     "anki_total_time": 186176,
     "immersion_total_time": 26315
   }
-}
+};

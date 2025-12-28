@@ -2,7 +2,7 @@
 export const seedData = {
   "meta": {
     "app": "nihongo-nexus",
-    "version": 3,
+    "version": 4,
     "timestamp": "2025-12-22T10:00:20.596Z",
     "deviceName": "Windows NT 10.0; Win64; x64"
   },
@@ -33,6 +33,20 @@ export const seedData = {
         },
         "keepsakes": [
           {
+            "id": "summer-hikaru-placeholder",
+            "title": "The Summer Hikaru Died",
+            "type": "ANIME",
+            "status": "ONGOING",
+            "coverUrl": "https://i.pinimg.com/736x/74/b5/4b/74b54b55d8c4972a5223df826861c9bb.jpg",
+            "rating": 0,
+            "caption": "",
+            "durationOrVolumes": 120,
+            "dateAdded": "2025-12-22",
+            "dateCompleted": "",
+            "showInTheater": true,
+            "totalEpisodes": 12
+          },
+          {
             "id": "death-note-placeholder",
             "title": "Death Note",
             "type": "ANIME",
@@ -41,8 +55,8 @@ export const seedData = {
             "rating": 5,
             "caption": "i am SEATED ohmygod so many plot twist",
             "durationOrVolumes": 455,
-            "dateCompleted": "2025-12-22",
             "dateAdded": "2025-12-22",
+            "dateCompleted": "2025-12-22",
             "showInTheater": true,
             "totalEpisodes": 37
           }
@@ -57,11 +71,17 @@ export const seedData = {
           }
         ]
       },
-      "version": 8
+      "version": 9
     },
     "nihongo-nexus-immersion-v3": {
       "state": {
         "series": [
+          {
+            "id": "summer-hikaru-placeholder",
+            "title": "The Summer Hikaru Died",
+            "totalEpisodes": 12,
+            "coverUrl": "https://i.pinimg.com/736x/74/b5/4b/74b54b55d8c4972a5223df826861c9bb.jpg"
+          },
           {
             "id": "death-note-placeholder",
             "title": "Death Note",
@@ -75,7 +95,7 @@ export const seedData = {
         "subtitleOffset": 0,
         "metadataHydratedIds": []
       },
-      "version": 1
+      "version": 2
     },
     "messenger_total_time": 2329,
     "grammar_total_time": 4319,

@@ -134,6 +134,12 @@ class DictionaryService {
     return await db.get(LIBRARY_STORE, key) || null;
   }
 
+  async deleteEpisodeMetadata(seriesId: string, episodeNumber: number): Promise<void> {
+    const db = await this.db;
+    const key = `${seriesId}_ep_${episodeNumber}`;
+    await db.delete(LIBRARY_STORE, key);
+  }
+
   /**
    * Fetches ALL stored metadata for backup.
    */

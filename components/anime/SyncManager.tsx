@@ -51,7 +51,6 @@ const SyncManager: React.FC = () => {
             type="file" 
             ref={fileInputRef} 
             onChange={handleFileUpload} 
-            accept=".srt" 
             className="hidden" 
           />
         </button>

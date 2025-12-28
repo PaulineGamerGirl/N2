@@ -65,6 +65,7 @@ export interface ExplanationCard {
 export interface MinedCard {
   id: string;
   sourceTitle: string; 
+  sourceEpisode?: number; // Added for Anki tagging
   front: string; 
   back: string;  
   translation: string; 
@@ -72,4 +73,16 @@ export interface MinedCard {
   image: string; 
   audio: string; 
   timestamp: number;
+}
+
+export interface QueueItem {
+  id: string;
+  videoFile: File;
+  srtFile: File;
+  title: string;
+  status: 'pending' | 'processing' | 'completed' | 'error';
+  progress: number; // 0-100
+  phase: 'Queued' | 'Audio Sync' | 'Translating' | 'Cooling Down' | 'Finalizing' | 'Done' | 'Failed';
+  details?: string; // e.g., "Cooling down: 45s remaining"
+  error?: string;
 }

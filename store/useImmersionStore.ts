@@ -1,12 +1,13 @@
 
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { VideoAnalysis, DialogueNode, MinedCard, Series, EpisodeMetadata } from '../types/immersionSchema';
+import { VideoAnalysis, DialogueNode, MinedCard, Series, QueueItem } from '../types/immersionSchema';
 import { dictionaryService } from '../services/dictionaryService';
-import { analyzeImmersionMedia, enrichSubtitles } from '../services/immersionService';
+import { analyzeImmersionMedia, enrichSubtitles, getAudioSample, calculateSubtitleOffset } from '../services/immersionService';
 import { getVideoMetadata, fileToBase64 } from '../utils/videoMetadata';
 import { parseSRTFile } from '../utils/srtParser';
 import { Keepsake } from './progressStore';
+import { opfsService } from '../services/opfsService';
 
 type LayoutMode = 'split' | 'stacked';
 export type ViewMode = 'standard' | 'cinema';
@@ -24,8 +25,10 @@ interface ImmersionState {
   metadataHydratedIds: Set<string>; 
   isLibraryOpen: boolean;
 
-  // Background Processing & Notifications
+  // Background Processing & Queue
   isAnalyzing: boolean;
+  isProcessingQueue: boolean;
+  ingestionQueue: QueueItem[];
   globalNotification: GlobalNotification | null;
   dismissNotification: () => void;
 
@@ -45,14 +48,21 @@ interface ImmersionState {
   setActiveSession: (seriesId: string | null, epNum: number | null) => void;
   loadEpisodeMetadata: (seriesId: string, epNum: number) => Promise<VideoAnalysis | null>;
   saveEpisodeMetadata: (seriesId: string, epNum: number, analysis: VideoAnalysis) => Promise<void>;
+  deleteEpisode: (seriesId: string, epNum: number) => Promise<void>;
   markEpisodesAsHydrated: (seriesId: string, episodeNumbers: number[]) => void;
   setLibraryOpen: (isOpen: boolean) => void;
   
-  // Background Extraction Logic
-  startBackgroundIngestion: (files: FileList) => Promise<void>;
-  startBackgroundCinemaSync: (video: File, srt: File, enSrt?: File) => Promise<void>;
+  // Queue Actions
+  addToQueue: (videos: File[], srts: File[]) => void;
+  addDetailedToQueue: (items: { video: File, srt: File, seriesTitle: string, epNum: number }[]) => void;
+  processQueue: () => Promise<void>;
+  clearQueue: () => void;
+  removeFromQueue: (id: string) => void;
 
-  addAnalyzedVideo: (videoFile: File, analysis: VideoAnalysis) => void;
+  // Legacy/Single Actions
+  startBackgroundIngestion: (files: FileList) => Promise<void>;
+  
+  addAnalyzedVideo: (videoFile: File, analysis: VideoAnalysis, seriesId?: string, epNum?: number) => void;
   setActiveIndex: (index: number) => void;
   setViewMode: (viewMode: ViewMode) => void;
   setLayoutMode: (mode: LayoutMode) => void;
@@ -69,6 +79,12 @@ export const useImmersionStore = create<ImmersionState>()(
     (set, get) => ({
       series: [
         {
+          id: "summer-hikaru-placeholder",
+          title: "The Summer Hikaru Died",
+          totalEpisodes: 12,
+          coverUrl: "https://i.pinimg.com/736x/74/b5/4b/74b54b55d8c4972a5223df826861c9bb.jpg"
+        },
+        {
           id: "death-note-placeholder",
           title: "Death Note",
           totalEpisodes: 37,
@@ -81,6 +97,8 @@ export const useImmersionStore = create<ImmersionState>()(
       isLibraryOpen: false,
 
       isAnalyzing: false,
+      isProcessingQueue: false,
+      ingestionQueue: [],
       globalNotification: null,
       dismissNotification: () => set({ globalNotification: null }),
 
@@ -103,6 +121,147 @@ export const useImmersionStore = create<ImmersionState>()(
         }));
       },
 
+      addToQueue: (videos, srts) => {
+        const sortedVideos = [...videos].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+        const sortedSrts = [...srts].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+
+        const newItems: QueueItem[] = [];
+        
+        sortedVideos.forEach((video, idx) => {
+          const srt = sortedSrts[idx];
+          if (srt) {
+            newItems.push({
+              id: crypto.randomUUID(),
+              videoFile: video,
+              srtFile: srt,
+              title: video.name.replace(/\.[^/.]+$/, ""),
+              status: 'pending',
+              progress: 0,
+              phase: 'Queued'
+            });
+          }
+        });
+
+        set(state => ({ ingestionQueue: [...state.ingestionQueue, ...newItems] }));
+        if (!get().isProcessingQueue) get().processQueue();
+      },
+
+      addDetailedToQueue: (items) => {
+        const newItems: QueueItem[] = items.map(item => ({
+          id: crypto.randomUUID(),
+          videoFile: item.video,
+          srtFile: item.srt,
+          title: `${item.seriesTitle} - Ep ${item.epNum}`,
+          status: 'pending',
+          progress: 0,
+          phase: 'Queued'
+        }));
+
+        set(state => ({ ingestionQueue: [...state.ingestionQueue, ...newItems] }));
+        if (!get().isProcessingQueue) get().processQueue();
+      },
+
+      removeFromQueue: (id) => set(state => ({
+        ingestionQueue: state.ingestionQueue.filter(item => item.id !== id)
+      })),
+
+      clearQueue: () => set({ ingestionQueue: [] }),
+
+      processQueue: async () => {
+        if (get().isProcessingQueue) return;
+        set({ isProcessingQueue: true });
+
+        while (true) {
+          const state = get();
+          const nextIdx = state.ingestionQueue.findIndex(q => q.status === 'pending');
+          
+          if (nextIdx === -1) {
+            set({ isProcessingQueue: false });
+            break; 
+          }
+
+          const item = state.ingestionQueue[nextIdx];
+          const updateItem = (updates: Partial<QueueItem>) => {
+            set(s => {
+              const q = [...s.ingestionQueue];
+              if (q[nextIdx]) q[nextIdx] = { ...q[nextIdx], ...updates };
+              return { ingestionQueue: q };
+            });
+          };
+
+          updateItem({ status: 'processing', phase: 'Audio Sync', progress: 5, details: 'Analyzing audio track...' });
+
+          try {
+            const rawNodes = await parseSRTFile(item.srtFile);
+            
+            // CRITICAL CHECK: If parser returned empty nodes, fail immediately.
+            if (!rawNodes || rawNodes.length === 0) {
+               throw new Error("SRT Parse Failed: No valid subtitles found. Check timestamp format (00:00:00,000).");
+            }
+
+            updateItem({ progress: 15 });
+
+            const audioBase64 = await getAudioSample(item.videoFile);
+            const firstFiveLines = rawNodes.slice(0, 5).map(n => ({
+               text: n.japanese[0].text,
+               start: n.timestampStart
+            }));
+            
+            const offset = await calculateSubtitleOffset(audioBase64, firstFiveLines);
+            updateItem({ phase: 'Translating', progress: 30, details: 'Enriching content with AI...' });
+
+            const syncedNodes = rawNodes.map(n => ({
+               ...n,
+               timestampStart: n.timestampStart + offset,
+               timestampEnd: n.timestampEnd + offset
+            }));
+
+            // Pass status callback to enrichSubtitles
+            const enrichedNodes = await enrichSubtitles(syncedNodes, (pct, statusMsg) => {
+               // Determine phase from message if possible, or keep Translating
+               let phase: QueueItem['phase'] = 'Translating';
+               if (statusMsg?.includes('Cooling')) phase = 'Cooling Down';
+               
+               updateItem({ 
+                 phase, 
+                 progress: 30 + Math.floor(pct * 0.6),
+                 details: statusMsg
+               });
+            });
+
+            const analysis = {
+              videoId: crypto.randomUUID(),
+              title: item.title,
+              nodes: enrichedNodes
+            };
+
+            updateItem({ phase: 'Finalizing', progress: 95, details: 'Saving to vault...' });
+
+            const epMatch = item.title.match(/(?:ep|episode|[_\s])(\d+)/i);
+            const guessedEpNum = epMatch ? parseInt(epMatch[1]) : (state.activeEpisodeNumber ? state.activeEpisodeNumber + nextIdx : null);
+
+            if (state.activeSeriesId && guessedEpNum) {
+               await get().saveEpisodeMetadata(state.activeSeriesId, guessedEpNum, analysis);
+               // OPFS Cache for this specific episode
+               await opfsService.saveVideo(opfsService.getKey(state.activeSeriesId, guessedEpNum), item.videoFile);
+            }
+
+            get().addAnalyzedVideo(item.videoFile, analysis, state.activeSeriesId || undefined, guessedEpNum || undefined);
+
+            updateItem({ status: 'completed', phase: 'Done', progress: 100, details: 'Ready for playback' });
+
+            // CRITICAL: Cool down to prevent 429 errors from Google API
+            await new Promise(resolve => setTimeout(resolve, 5000));
+
+          } catch (error: any) {
+            console.error("Queue Processing Error:", error);
+            updateItem({ status: 'error', phase: 'Failed', error: error.message, details: error.message });
+            // Add a small delay even on error to prevent rapid-fire loops
+            await new Promise(resolve => setTimeout(resolve, 2000));
+          }
+        }
+      },
+
       startBackgroundIngestion: async (files: FileList) => {
         set({ isAnalyzing: true });
         try {
@@ -115,59 +274,16 @@ export const useImmersionStore = create<ImmersionState>()(
             const fileMeta = await getVideoMetadata(file);
             const base64 = await fileToBase64(file);
             const analysis = await analyzeImmersionMedia(base64, file.type, fileMeta.duration);
-            
-            const seriesId = get().activeSeriesId;
-            const epNum = get().activeEpisodeNumber;
-            if (seriesId && epNum) {
-              await get().saveEpisodeMetadata(seriesId, epNum, analysis);
-            }
-
             get().addAnalyzedVideo(file, analysis);
           }
-
-          set({ 
-            isAnalyzing: false,
-            globalNotification: { show: true, message: "Done Uploading! You can now watch!" }
-          });
+          set({ isAnalyzing: false });
         } catch (e) {
           set({ isAnalyzing: false });
-          console.error(e);
         }
       },
 
-      startBackgroundCinemaSync: async (video: File, srt: File, enSrt?: File) => {
-        set({ isAnalyzing: true });
-        try {
-          const rawJpNodes = await parseSRTFile(srt);
-          let rawEnNodes = undefined;
-          if (enSrt) {
-            rawEnNodes = await parseSRTFile(enSrt);
-          }
-
-          const enrichedNodes = await enrichSubtitles(rawJpNodes, rawEnNodes);
-          
-          const analysis = {
-            videoId: crypto.randomUUID(),
-            title: video.name.replace(/\.[^/.]+$/, ""),
-            nodes: enrichedNodes
-          };
-
-          const seriesId = get().activeSeriesId;
-          const epNum = get().activeEpisodeNumber;
-          if (seriesId && epNum) {
-            await get().saveEpisodeMetadata(seriesId, epNum, analysis);
-          }
-
-          get().addAnalyzedVideo(video, analysis);
-          
-          set({ 
-            isAnalyzing: false,
-            globalNotification: { show: true, message: "Done Uploading! You can now watch!" }
-          });
-        } catch (e) {
-          set({ isAnalyzing: false });
-          console.error(e);
-        }
+      startBackgroundCinemaSync: async (video: File, srt: File) => {
+         get().addToQueue([video], [srt]);
       },
 
       addSeries: (newSeries) => set(state => {
@@ -206,6 +322,20 @@ export const useImmersionStore = create<ImmersionState>()(
       loadEpisodeMetadata: async (seriesId, epNum) => {
         const meta = await dictionaryService.getEpisodeMetadata(seriesId, epNum);
         if (meta) {
+          // Metadata exists. Now try to recover the video "Ghost" from OPFS.
+          const opfsKey = opfsService.getKey(seriesId, epNum);
+          const cachedVideoFile = await opfsService.loadVideo(opfsKey);
+          
+          let videoUrl = '';
+          if (cachedVideoFile) {
+             videoUrl = URL.createObjectURL(cachedVideoFile);
+             // We inject this recovered video source directly into state
+             const videoId = meta.analysis.videoId;
+             set(state => ({
+               videoSources: { ...state.videoSources, [videoId]: videoUrl }
+             }));
+          }
+
           set({
             playlist: [meta.analysis],
             activeIndex: 0,
@@ -232,6 +362,19 @@ export const useImmersionStore = create<ImmersionState>()(
         });
       },
 
+      deleteEpisode: async (seriesId: string, epNum: number) => {
+        await dictionaryService.deleteEpisodeMetadata(seriesId, epNum);
+        // Also cleanup OPFS to free space
+        await opfsService.deleteVideo(opfsService.getKey(seriesId, epNum));
+        
+        const key = `${seriesId}_ep_${epNum}`;
+        set(state => {
+          const nextSet = new Set(state.metadataHydratedIds);
+          nextSet.delete(key);
+          return { metadataHydratedIds: nextSet };
+        });
+      },
+
       markEpisodesAsHydrated: (seriesId, episodeNumbers) => {
         set(state => {
           const nextSet = new Set(state.metadataHydratedIds);
@@ -242,9 +385,15 @@ export const useImmersionStore = create<ImmersionState>()(
         });
       },
 
-      addAnalyzedVideo: (videoFile, analysis) => {
+      addAnalyzedVideo: (videoFile, analysis, seriesId, epNum) => {
         const videoUrl = URL.createObjectURL(videoFile);
         const videoId = analysis.videoId || crypto.randomUUID();
+        
+        // Save to OPFS if we have context
+        if (seriesId && epNum) {
+           opfsService.saveVideo(opfsService.getKey(seriesId, epNum), videoFile);
+        }
+
         set((state) => ({
           playlist: [{ ...analysis, videoId }, ...state.playlist],
           videoSources: { ...state.videoSources, [videoId]: videoUrl },
@@ -265,6 +414,7 @@ export const useImmersionStore = create<ImmersionState>()(
     }),
     {
       name: 'nihongo-nexus-immersion-v3',
+      version: 2,
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
         series: state.series,
@@ -278,6 +428,24 @@ export const useImmersionStore = create<ImmersionState>()(
         if (state && Array.isArray(state.metadataHydratedIds)) {
           state.metadataHydratedIds = new Set(state.metadataHydratedIds);
         }
+      },
+      migrate: (persistedState: any, version) => {
+        if (version < 2) {
+          const state = persistedState as ImmersionState;
+          const hikaruId = "summer-hikaru-placeholder";
+          if (state.series && !state.series.some(s => s.id === hikaruId)) {
+            state.series = [
+              {
+                id: hikaruId,
+                title: "The Summer Hikaru Died",
+                totalEpisodes: 12,
+                coverUrl: "https://i.pinimg.com/736x/74/b5/4b/74b54b55d8c4972a5223df826861c9bb.jpg"
+              },
+              ...state.series
+            ];
+          }
+        }
+        return persistedState;
       }
     }
   )

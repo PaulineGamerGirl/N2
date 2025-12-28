@@ -92,6 +92,20 @@ export const useProgressStore = create<ProgressState>()(
       },
       keepsakes: [
         {
+          id: "summer-hikaru-placeholder",
+          title: "The Summer Hikaru Died",
+          type: "ANIME",
+          status: "ONGOING",
+          coverUrl: "https://i.pinimg.com/736x/74/b5/4b/74b54b55d8c4972a5223df826861c9bb.jpg",
+          rating: 0,
+          caption: "",
+          durationOrVolumes: 120, // 2 hours base
+          dateAdded: new Date().toISOString().split('T')[0],
+          dateCompleted: "",
+          showInTheater: true,
+          totalEpisodes: 12
+        },
+        {
           id: "death-note-placeholder",
           title: "Death Note",
           type: "ANIME",
@@ -260,7 +274,7 @@ export const useProgressStore = create<ProgressState>()(
         const stateData = incomingData[STORAGE_KEY]?.state;
         if (stateData) {
           set(stateData);
-          const fullState = { state: get(), version: (seedData as any).version || 8 };
+          const fullState = { state: get(), version: (seedData as any).version || 9 };
           localStorage.setItem(STORAGE_KEY, JSON.stringify(fullState));
         }
         Object.keys(incomingData).forEach(key => {
@@ -274,8 +288,48 @@ export const useProgressStore = create<ProgressState>()(
     }),
     {
       name: STORAGE_KEY,
-      version: 8,
-      storage: createJSONStorage(() => localStorage)
+      version: 9,
+      storage: createJSONStorage(() => localStorage),
+      migrate: (persistedState: any, version) => {
+        if (version < 9) {
+          const state = persistedState as ProgressState;
+          const hikaruId = "summer-hikaru-placeholder";
+          const existingIndex = state.keepsakes ? state.keepsakes.findIndex(k => k.id === hikaruId) : -1;
+
+          const defaultHikaru = {
+            id: hikaruId,
+            title: "The Summer Hikaru Died",
+            type: "ANIME" as const,
+            status: "ONGOING" as const,
+            coverUrl: "https://i.pinimg.com/736x/74/b5/4b/74b54b55d8c4972a5223df826861c9bb.jpg",
+            rating: 0,
+            caption: "",
+            durationOrVolumes: 120, // 2 hours default
+            dateAdded: new Date().toISOString().split('T')[0],
+            dateCompleted: "",
+            showInTheater: true,
+            totalEpisodes: 12
+          };
+
+          if (existingIndex !== -1) {
+            // SMART MERGE: Keep user's progress (duration, rating) but force structural updates (theater flag, image)
+            const existing = state.keepsakes[existingIndex];
+            state.keepsakes[existingIndex] = {
+              ...defaultHikaru, // Apply defaults first
+              ...existing,      // Overwrite with existing user data (preserves duration: 200, rating, etc)
+              // Enforce critical updates that user might miss
+              showInTheater: true,
+              totalEpisodes: 12,
+              coverUrl: "https://i.pinimg.com/736x/74/b5/4b/74b54b55d8c4972a5223df826861c9bb.jpg"
+            };
+          } else {
+            // New Insert
+            if (!state.keepsakes) state.keepsakes = [];
+            state.keepsakes = [defaultHikaru, ...state.keepsakes];
+          }
+        }
+        return persistedState;
+      },
     }
   )
 );

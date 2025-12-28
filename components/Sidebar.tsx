@@ -16,7 +16,8 @@ import {
   Clapperboard,
   PanelLeftClose,
   Tv,
-  Library
+  Library,
+  Loader2
 } from 'lucide-react';
 import { View } from '../types';
 import { SIDEBAR_VIDEOS } from '../constants';
@@ -70,7 +71,7 @@ const SidebarVideoWidget: React.FC = () => {
 };
 
 const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, onSummonSensei, isHidden = false, onToggleHide }) => {
-  const { setViewMode, viewMode, setLibraryOpen, isLibraryOpen } = useImmersionStore();
+  const { setViewMode, viewMode, setLibraryOpen, isLibraryOpen, isProcessingQueue } = useImmersionStore();
   
   const navItems = [
     { id: 'dashboard', label: 'My Journal', icon: Feather },
@@ -151,6 +152,13 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, onSummonSe
                 >
                   <item.icon className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-coquette-accent fill-coquette-accent/20' : 'group-hover:text-coquette-gold'}`} />
                   <span className="hidden lg:block text-lg truncate">{item.label}</span>
+                  
+                  {/* Background Worker Indicator */}
+                  {item.id === 'theater' && isProcessingQueue && (
+                    <div className="ml-auto pr-2">
+                        <Loader2 className="w-3 h-3 text-rose-400 animate-spin" />
+                    </div>
+                  )}
                 </button>
                 
                 {item.hasExtras && (
