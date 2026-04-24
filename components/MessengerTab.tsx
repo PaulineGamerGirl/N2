@@ -268,8 +268,8 @@ const SummonOverlay: React.FC<{ persona: PersonaProfile; onComplete: () => void 
             muted={false}
             playsInline
             onEnded={onComplete}
-            onError={(e) => {
-              console.error("Summon video error:", e);
+            onError={() => {
+              console.error("Summon video error");
               onComplete();
             }}
             className="w-full h-full object-cover"
@@ -418,7 +418,7 @@ const generateGeminiResponse = async (
     throw new Error("Empty response");
 
   } catch (error) {
-    console.error("Gemini API Error:", error);
+    console.error("Gemini API Error:", error instanceof Error ? error.message : error);
     return {
       reply: "申し訳ありません、ちょっと聞こえなかった。(Connection Error)",
       suggestions: ["Retry", "Check connection", "Say hello"]
@@ -479,7 +479,7 @@ const analyzeGrammar = async (text: string): Promise<CorrectionData> => {
     };
 
   } catch (error) {
-    console.error("Grammar Analysis Error:", error);
+    console.error("Grammar Analysis Error:", error instanceof Error ? error.message : error);
     return {
       original: text,
       corrected: "Error during analysis",

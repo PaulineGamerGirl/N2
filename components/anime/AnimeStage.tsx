@@ -248,7 +248,7 @@ const AnimeStage: React.FC<AnimeStageProps> = ({ video, index, total }) => {
     try {
       const data = await explainToken(fullSentence, fullSentence, groundTruthTranslation, null, (partial) => setExplanation(partial));
       setExplanation(data);
-    } catch (e) { console.error(e); } finally { setIsExplaining(false); }
+    } catch (e) { console.error("Sensei Explanation Error:", e instanceof Error ? e.message : e); } finally { setIsExplaining(false); }
   };
 
   const handleMine = async () => {

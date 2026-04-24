@@ -295,7 +295,7 @@ const ImmersionStage: React.FC<ImmersionStageProps> = ({ video, isActive, index,
       );
       setExplanation(data);
     } catch (e) {
-      console.error(e);
+      console.error("Sensei Insight Error:", e instanceof Error ? e.message : e);
     } finally {
       setIsExplaining(false);
     }

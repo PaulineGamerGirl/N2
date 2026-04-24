@@ -68,21 +68,27 @@ const DataManagementModal: React.FC<DataManagementModalProps> = ({ isOpen, onClo
     setStatusMsg('Compiling Deep Chronicle...');
     
     try {
-      const backupData: Record<string, any> = {};
-      
-      // 1. Capture LocalStorage Keys
-      TARGET_KEYS.forEach(key => {
-        const raw = localStorage.getItem(key);
-        if (raw) {
-          try {
-            backupData[key] = JSON.parse(raw);
-          } catch {
-            backupData[key] = raw;
+      const backupData: Record<string, any> = {
+        timestamp: new Date().toISOString(),
+        userAgent: navigator.userAgent
+      };
+
+      // Narrow down localStorage to only include its own string properties
+      // and explicitly target the keys we care about to avoid bloat or circularity
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && (TARGET_KEYS.includes(key as any) || key === 'messenger_contacts' || key === 'messenger_history')) {
+          const raw = localStorage.getItem(key);
+          if (raw) {
+            try {
+              backupData[key] = JSON.parse(raw);
+            } catch {
+              backupData[key] = raw;
+            }
           }
         }
-      });
+      }
 
-      // 2. Capture IndexedDB Episode Metadata (The "Vault")
       const vaultMetadata = await dictionaryService.getAllEpisodesMetadata();
       backupData['indexed_db_vault'] = vaultMetadata;
 

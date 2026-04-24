@@ -337,7 +337,7 @@ export const explainToken = async (
     const finalClean = accumulatedText.replace(/```json/g, '').replace(/```/g, '').trim();
     return JSON.parse(finalClean) as ExplanationCard;
   } catch (e) {
-    console.error("Explanation Failed:", e);
+    console.error("Explanation Failed:", e instanceof Error ? e.message : e);
     return { segments: [], naturalTranslation: "Analysis unavailable.", visualLogic: "Logic map failed." };
   }
 };
