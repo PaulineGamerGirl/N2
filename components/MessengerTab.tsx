@@ -13,6 +13,42 @@ import { ParsedGrammarPoint } from '../utils/grammarParser';
 
 // --- HELPERS FOR AUDIO DECODING ---
 
+// Fallback Model Lists
+const FLASH_MODELS = ['gemini-3-flash-preview', 'gemini-3.1-flash-lite-preview', 'gemini-flash-latest'];
+const PRO_MODELS = ['gemini-3.1-pro-preview', 'gemini-3-pro-preview']; // Use aliases from skill
+
+async function callWithFallback(
+  ai: any, 
+  params: any, 
+  modelTypes: 'flash' | 'pro' = 'flash'
+) {
+  const models = modelTypes === 'flash' ? FLASH_MODELS : PRO_MODELS;
+  let lastError: any = null;
+
+  for (const modelName of models) {
+    try {
+      console.log(`[Neural Link] Attempting connection via ${modelName}...`);
+      const response = await ai.models.generateContent({
+        ...params,
+        model: modelName
+      });
+      return response;
+    } catch (error) {
+      lastError = error;
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      console.warn(`[Neural Link] ${modelName} overloaded or failed:`, errorMsg);
+      // If it's a model not found or forbidden, we might want to continue. 
+      // If it's quota, we definitely want to continue.
+      if (errorMsg.includes('429') || errorMsg.includes('500') || errorMsg.includes('503') || errorMsg.includes('limit')) {
+        continue;
+      }
+      // If it's another type of error, we might still want to try the fallback anyway
+      continue;
+    }
+  }
+  throw lastError;
+}
+
 function decode(base64: string) {
   const binaryString = atob(base64);
   const len = binaryString.length;
@@ -392,8 +428,7 @@ const generateGeminiResponse = async (
   const contents = [...pastContents, currentContent];
 
   try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+    const response = await callWithFallback(ai, {
       contents: contents,
       config: {
         systemInstruction: systemInstruction, 
@@ -410,7 +445,7 @@ const generateGeminiResponse = async (
           required: ["reply", "suggestions"]
         }
       }
-    });
+    }, 'flash');
 
     if (response.text) {
       return JSON.parse(response.text) as AIResponse;
@@ -418,9 +453,9 @@ const generateGeminiResponse = async (
     throw new Error("Empty response");
 
   } catch (error) {
-    console.error("Gemini API Error:", error instanceof Error ? error.message : error);
+    console.error("Gemini API Error (All fallbacks exhausted):", error instanceof Error ? error.message : error);
     return {
-      reply: "申し訳ありません、ちょっと聞こえなかった。(Connection Error)",
+      reply: "申し訳ありません、ちょっと聞こえなかった。(Neural Link Exhausted)",
       suggestions: ["Retry", "Check connection", "Say hello"]
     };
   }
@@ -451,8 +486,7 @@ const analyzeGrammar = async (text: string): Promise<CorrectionData> => {
   `;
 
   try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+    const response = await callWithFallback(ai, {
       contents: prompt,
       config: {
         responseMimeType: 'application/json',
@@ -466,7 +500,7 @@ const analyzeGrammar = async (text: string): Promise<CorrectionData> => {
           required: ["original", "better", "reason"]
         }
       }
-    });
+    }, 'flash');
 
     const rawText = response.text || "{}";
     const cleanText = rawText.replace(/```json/g, "").replace(/```/g, "").trim();
@@ -483,7 +517,7 @@ const analyzeGrammar = async (text: string): Promise<CorrectionData> => {
     return {
       original: text,
       corrected: "Error during analysis",
-      explanation: "Could not process the grammar check. Please try again."
+      explanation: "Could not process the grammar check. Fallback failed."
     };
   }
 };
@@ -519,8 +553,7 @@ const generateDrillScenario = async (point: ParsedGrammarPoint): Promise<DrillSc
     Output strictly valid JSON.
   `;
 
-  const response = await ai.models.generateContent({
-    model: 'gemini-3-pro-preview',
+  const response = await callWithFallback(ai, {
     contents: prompt,
     config: {
       responseMimeType: 'application/json',
@@ -536,7 +569,7 @@ const generateDrillScenario = async (point: ParsedGrammarPoint): Promise<DrillSc
         required: ["characterName", "roleDescription", "context", "systemInstruction", "initialMessage"]
       }
     }
-  });
+  }, 'pro');
 
   if (response.text) {
     return JSON.parse(response.text) as DrillScenarioResponse;
