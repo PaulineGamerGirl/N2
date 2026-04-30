@@ -469,20 +469,14 @@ const analyzeGrammar = async (text: string): Promise<CorrectionData> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
   const prompt = `
-    You are a helpful Japanese language teacher. 
-    Analyze the following student sentence: "${text}"
+    You are an expert Japanese language teacher. 
+    Analyze the following student text: "${text}"
 
     Tasks:
-    1. Identify if it is natural. 
-    2. If it is unnatural, a fragment, or incorrect slang, provide a better native phrasing.
-    3. Explain the reason for the correction in English.
-
-    OUTPUT FORMAT: RAW JSON ONLY (No Markdown)
-    {
-      "original": "${text}",
-      "better": "Native/Correct phrasing (Kanji/Kana)",
-      "reason": "Clear explanation of the error or nuance in English"
-    }
+    1. Break the student's input down sentence-by-sentence (or clause-by-clause if it is a run-on).
+    2. For each line, provide the original text and the corrected, natural native phrasing. Add reading aids (furigana in parentheses) for kanji.
+    3. Break down the reasons for your corrections using specific categories (e.g., "Particle", "Vocabulary", "Grammar", "Naturalness", "Politeness", "Counting"). Explain the rule or nuance clearly in English.
+    4. Provide a final, fully combined "Improved Version" paragraph that sounds natural and cohesive.
   `;
 
   try {
@@ -493,31 +487,50 @@ const analyzeGrammar = async (text: string): Promise<CorrectionData> => {
         responseSchema: {
           type: Type.OBJECT,
           properties: {
-            original: { type: Type.STRING },
-            better: { type: Type.STRING },
-            reason: { type: Type.STRING }
+            lineByLine: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  original: { type: Type.STRING },
+                  correction: { type: Type.STRING },
+                  explanations: {
+                    type: Type.ARRAY,
+                    items: {
+                      type: Type.OBJECT,
+                      properties: {
+                        category: { type: Type.STRING },
+                        reason: { type: Type.STRING }
+                      },
+                      required: ["category", "reason"]
+                    }
+                  }
+                },
+                required: ["original", "correction", "explanations"]
+              }
+            },
+            improvedVersion: { type: Type.STRING }
           },
-          required: ["original", "better", "reason"]
+          required: ["lineByLine", "improvedVersion"]
         }
       }
     }, 'flash');
 
     const rawText = response.text || "{}";
     const cleanText = rawText.replace(/```json/g, "").replace(/```/g, "").trim();
-    const json = JSON.parse(cleanText);
-
-    return {
-      original: json.original || text,
-      corrected: json.better || "Natural phrasing not found.",
-      explanation: json.reason || "No explanation provided."
-    };
+    return JSON.parse(cleanText) as CorrectionData;
 
   } catch (error) {
     console.error("Grammar Analysis Error:", error instanceof Error ? error.message : error);
     return {
-      original: text,
-      corrected: "Error during analysis",
-      explanation: "Could not process the grammar check. Fallback failed."
+      lineByLine: [
+        {
+          original: text,
+          correction: "Error during analysis",
+          explanations: [{ category: "System", reason: "Could not process the grammar check. Fallback failed." }]
+        }
+      ],
+      improvedVersion: "Analysis unavailable due to connection error."
     };
   }
 };
@@ -534,11 +547,17 @@ const generateDrillScenario = async (point: ParsedGrammarPoint): Promise<DrillSc
     Target Grammar: "${point.point}"
     Meaning: "${point.meaning}"
 
-    Create a short, unique roleplay scenario to practice this grammar.
+    Create a short, unique, and HIGHLY CREATIVE roleplay scenario to practice this grammar.
+    
+    CREATIVE EXAMPLES:
+    - Trapped in a sentient, angry library where books attack if you don't use correct grammar.
+    - Interrogated by a futuristic robot guard at a spaceport.
+    - Bargaining with a grumpy forest spirit who controls your path.
+    - Negotiating with a dragon who only listens to polite but firm requests.
 
     Requirements:
     1. Define a Persona (Name, Role, Personality).
-    2. Define a Context.
+    2. Define a Context (High stakes, immersive, or fantastical).
     3. System Instruction for the AI:
        - You are roleplaying as the defined Persona.
        - Speak natural Japanese consistent with the persona.
@@ -553,28 +572,33 @@ const generateDrillScenario = async (point: ParsedGrammarPoint): Promise<DrillSc
     Output strictly valid JSON.
   `;
 
-  const response = await callWithFallback(ai, {
-    contents: prompt,
-    config: {
-      responseMimeType: 'application/json',
-      responseSchema: {
-        type: Type.OBJECT,
-        properties: {
-          characterName: { type: Type.STRING, description: "The name of the persona (e.g. Tanaka-san)" },
-          roleDescription: { type: Type.STRING, description: "Short description of role (e.g. Strict Teacher)" },
-          context: { type: Type.STRING },
-          systemInstruction: { type: Type.STRING },
-          initialMessage: { type: Type.STRING }
-        },
-        required: ["characterName", "roleDescription", "context", "systemInstruction", "initialMessage"]
+  try {
+    const response = await callWithFallback(ai, {
+      contents: prompt,
+      config: {
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            characterName: { type: Type.STRING, description: "The name of the persona (e.g. Tanaka-san)" },
+            roleDescription: { type: Type.STRING, description: "Short description of role (e.g. Strict Teacher)" },
+            context: { type: Type.STRING },
+            systemInstruction: { type: Type.STRING },
+            initialMessage: { type: Type.STRING }
+          },
+          required: ["characterName", "roleDescription", "context", "systemInstruction", "initialMessage"]
+        }
       }
-    }
-  }, 'pro');
+    }, 'pro');
 
-  if (response.text) {
-    return JSON.parse(response.text) as DrillScenarioResponse;
+    if (response.text) {
+      return JSON.parse(response.text) as DrillScenarioResponse;
+    }
+    throw new Error("Empty response text");
+  } catch (error) {
+    console.error("Drill Generation Error:", error instanceof Error ? error.message : error);
+    throw error;
   }
-  throw new Error("Failed to generate drill scenario");
 };
 
 
