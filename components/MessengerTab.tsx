@@ -11,6 +11,7 @@ import { GoogleGenAI, Type, Modality } from "@google/genai";
 import { useProgressStore } from '../store/progressStore';
 import { HARDWIRED_GRAMMAR } from '../constants/grammarData';
 import { ParsedGrammarPoint } from '../utils/grammarParser';
+import ReactMarkdown from 'react-markdown';
 
 // --- HELPERS FOR AUDIO DECODING ---
 
@@ -357,18 +358,40 @@ const resolveSystemInstruction = (contact: PersonaProfile, drillPoint?: ParsedGr
   if (isDrill) {
     if (drillMode === 'creative') {
       behaviorInstruction = `
-        ${contact.systemInstruction}
-        
-        --- MODE: CREATIVE FANTASY DRILL ---
-        1. You are roleplaying in the fantastical context defined above.
-        2. Speak in ENGLISH for the story narration and task descriptions.
-        3. Speak in JAPANESE ONLY for the direct dialogue of your persona character.
-        4. TASK: In every response:
-           a) Correct any Japanese mistakes Pauline made (in ENGLISH with JAPANESE corrections).
-           b) Continue the immersive story (in ENGLISH).
-           c) Present a clear task for the next turn that FORCES the use of "${drillPoint?.point || 'target grammar'}" (in ENGLISH).
-           d) Ask Pauline a follow-up question in characterizing JAPANESE.
-        5. TONE: Immersive, encouraging, and slightly high-stakes.
+        --- MODE: GROUNDED FANTASY DRILL ---
+        Role: You are an authentic, adaptive Japanese Language Sensei.
+        Goal: Help Pauline reach speaking fluency in 7 months by moving passive knowledge to active output.
+        Target Grammar: "${drillPoint?.point || 'target grammar'}"
+
+        Instructions:
+        1. Focus: Stay on the target grammar point. Do not move to the next until she demonstrates mastery.
+        2. Correction Style: After she responds, provide a "Deep Correction" with clear headers and spacing:
+           
+           **🛠️ Line-by-Line Breakdown**
+           Correct spelling, particles (を vs が), and verb conjugations. Explain errors in English.
+           
+           **🌟 Natural Version**
+           Provide a fluent, "polished" version of her full response in Japanese.
+           
+           **🚀 Let's Continue our Practice**
+           Keep the story going using the SAME grammar point. Update the scene based on her actions.
+           
+        3. Formatting for the 'Let's Continue' step:
+           Use clear headers and double newlines for spacing.
+           
+           📖 **The Scenario**
+           [2-3 sentences in English updating the scene based on her choice. Use a fantasy hook but grounded tasks.]
+           
+           🎯 **Visualization Goal**
+           [Instruction on what to see in her head, e.g. 'Visualize the heavy door...']
+           
+           🔑 **Keywords**
+           - [Word] ([Reading] - [Meaning])
+           - [Word] ([Reading] - [Meaning])
+           
+           **Task:** [Short instruction requiring her to use "${drillPoint?.point || 'target grammar'}"]
+           
+        4. Tone: Peer-like, encouraging, and concise. Avoid dense walls of text. Be very strict on grammar mistakes but encouraging.
       `;
     } else {
       behaviorInstruction = `
@@ -566,25 +589,29 @@ const generateDrillScenario = async (point: ParsedGrammarPoint, mode: 'creative'
     Target Grammar: "${point.point}"
     Meaning: "${point.meaning}"
 
-    Create a HIGHLY CREATIVE, HIGH-STAKES FANTASY roleplay scenario.
-    EXAMPLES: Sentient library, spaceport interrogation, forest spirit bargain, dragon negotiation.
-
+    Create a "Grounded Fantasy" scenario. Use a creative hook (e.g., a magic kitchen, a futuristic train), but the tasks must be grounded in everyday actions (describing a room, ordering food, explaining a problem). 
+    Help Pauline visualize real-world actions rather than abstract magic.
+    
     Requirements:
-    1. Define a Persona (Name, Role, Personality).
-    2. Define a Context (High stakes, fantastical).
-    3. System Instruction for the AI:
-       - You are roleplaying as the Persona.
-       - Use ENGLISH for narration and setting the scene.
-       - Use JAPANESE for character dialogue.
-       - Every response MUST include:
-         a) Corrections of Pauline's Japanese (English explanations + Japanese fixes).
-         b) Continuation of the story (English).
-         c) A NEW situation/task to keep practicing "${point.point}" (English).
-    4. Initial Message: 
-       - Start with a vivid English description of the fantastical setting.
-       - Introduce the Persona.
-       - Present the FIRST TASK in English that requires using "${point.point}".
-       - End with a character greeting in Japanese.
+    1. Define a Persona (Name, Role).
+    2. Define a Context (A concrete situation with clear visual imagery).
+    3. Initial Message:
+       You MUST use this EXACT markdown format for the initial message:
+
+       **[${point.point} - ${point.meaning}]**
+
+       📖 **The Scenario**
+       [2-3 sentences in English setting the scene. It should be an immersive grounded fantasy.]
+
+       🎯 **Visualization Goal**
+       [1 sentence telling her what to visualize in her head to connect the action to the Japanese.]
+
+       🔑 **Keywords**
+       - [Keyword in Japanese] ([Reading in Hiragana/Romaji] - [English])
+       - [Keyword in Japanese] ([Reading in Hiragana/Romaji] - [English])
+
+       **Task:** [A short instruction forcing her to respond using "${point.point}". Ex: "Describe the room and use ${point.point} to explain why you can't leave."]
+    4. You MUST output a strictly valid JSON object matching the required schema. Ensure the markdown for the initialMessage is properly escaped inside the JSON string field.
   `;
 
   const realisticPrompt = `
@@ -592,47 +619,58 @@ const generateDrillScenario = async (point: ParsedGrammarPoint, mode: 'creative'
     Target Grammar: "${point.point}"
     Meaning: "${point.meaning}"
 
-    Create a REALISTIC, EVERYDAY Japanese roleplay scenario.
-    CONTEXT: Talking to a normal person (clerk, friend, colleague, stranger).
-
+    Create a realistic, everyday Japanese roleplay scenario.
     Requirements:
-    1. Define a Persona (Name, Role, Personality).
-    2. Define a Context (Realistic daily life).
-    3. System Instruction for the AI:
-       - Speak ONLY in Japanese for the roleplay.
-       - Use English ONLY for grammar corrections if she makes mistakes.
-    4. Initial Message: Start naturally in Japanese, addressing Pauline.
+    1. Define a Persona (Clerk, Friend, Teacher).
+    2. Define a Context (Standard daily interaction).
+    3. Initial Message: Start naturally in JAPANESE.
+    4. Output strictly valid JSON.
   `;
 
   const finalPrompt = mode === 'creative' ? creativePrompt : realisticPrompt;
 
-  try {
-    const response = await callWithFallback(ai, {
-      contents: finalPrompt,
-      config: {
-        responseMimeType: 'application/json',
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            characterName: { type: Type.STRING },
-            roleDescription: { type: Type.STRING },
-            context: { type: Type.STRING },
-            systemInstruction: { type: Type.STRING },
-            initialMessage: { type: Type.STRING }
-          },
-          required: ["characterName", "roleDescription", "context", "systemInstruction", "initialMessage"]
+  // Max retries for parsing logic
+  let attempts = 0;
+  while (attempts < 3) {
+    try {
+      const response = await callWithFallback(ai, {
+        contents: finalPrompt,
+        config: {
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              characterName: { type: Type.STRING },
+              roleDescription: { type: Type.STRING },
+              context: { type: Type.STRING },
+              systemInstruction: { type: Type.STRING },
+              initialMessage: { type: Type.STRING }
+            },
+            required: ["characterName", "roleDescription", "context", "systemInstruction", "initialMessage"]
+          }
         }
-      }
-    }, 'pro');
+      }, 'pro');
 
-    if (response.text) {
-      return { ...(JSON.parse(response.text)), mode } as DrillScenarioResponse;
+      if (response.text) {
+        const cleanText = response.text.replace(/```json/gi, "").replace(/```/g, "").trim();
+        const data = JSON.parse(cleanText);
+        return { ...data, mode } as DrillScenarioResponse;
+      }
+    } catch (error) {
+      console.warn(`Attempt ${attempts + 1} failed:`, error);
+      attempts++;
     }
-    throw new Error("Empty response text");
-  } catch (error) {
-    console.error("Drill Generation Error:", error instanceof Error ? error.message : error);
-    throw error;
   }
+  
+  // Final Fallback
+  return {
+    characterName: "Sensei",
+    roleDescription: "Supportive Guide",
+    context: "Emergency Drill Session",
+    systemInstruction: "Simulation failed to load properly. Help Pauline practice the grammar point directly.",
+    initialMessage: "Sorry, Pauline! The specific simulation hit a snag, but I'm here. Let's practice 「" + point.point + "」 together. Can you try making a sentence with it?",
+    mode
+  };
 };
 
 
@@ -1412,7 +1450,41 @@ const MessengerTab: React.FC = () => {
                    </motion.div>
                  )}
                </AnimatePresence>
-               {currentMessages.map((msg) => ( <motion.div key={msg.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'} group/message`}>{msg.sender === 'persona' && <img src={activeContact.avatar} alt="Avatar" className="w-8 h-8 rounded-full mr-2 self-end mb-1 shadow-sm object-cover" />}<div className={`flex items-end gap-2 max-w-[85%] ${msg.sender === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>{msg.sender === 'user' && <button onClick={() => handleAnalyzeGrammarClick(msg)} disabled={analyzingMessageId === msg.id} className={`transition-all duration-300 p-1.5 rounded-full shadow-sm mb-1 z-10 ${analyzingMessageId === msg.id ? 'bg-rose-100 text-rose-400 cursor-wait' : 'bg-white/80 hover:bg-white text-rose-300 opacity-0 group-hover/message:opacity-100'} ${msg.correction ? 'text-rose-500' : ''}`}>{analyzingMessageId === msg.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}</button>}<div className={`px-5 py-3 text-sm leading-relaxed shadow-sm font-coquette-body relative ${msg.sender === 'user' ? 'bg-rose-300 text-white rounded-2xl rounded-br-sm' : 'bg-white text-gray-600 border border-rose-100 rounded-2xl rounded-bl-sm'}`}><p className="whitespace-pre-wrap">{msg.text}</p><p className={`text-[10px] mt-1 text-right ${msg.sender === 'user' ? 'text-white/70' : 'text-gray-300'}`}>{msg.timestamp}</p></div>{msg.sender === 'persona' && <button onClick={() => speakText(msg.text, activeContact.id, msg.id)} disabled={loadingAudioId === msg.id} className={`p-2 rounded-full transition-all mb-1 ${speakingMessageId === msg.id ? 'bg-rose-100 text-rose-500' : 'text-rose-200 hover:text-rose-400'}`}>{loadingAudioId === msg.id ? <Loader2 className="w-4 h-4 animate-spin" /> : (speakingMessageId === msg.id ? <StopCircle className="w-4 h-4 fill-current" /> : <Volume2 className="w-4 h-4" />)}</button>}</div></motion.div> ))}
+               {currentMessages.map((msg) => ( 
+                 <motion.div key={msg.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'} group/message`}>
+                   {msg.sender === 'persona' && <img src={activeContact.avatar} alt="Avatar" className="w-8 h-8 rounded-full mr-2 self-end mb-1 shadow-sm object-cover" />}
+                   <div className={`flex items-end gap-2 max-w-[90%] ${msg.sender === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
+                     {msg.sender === 'user' && 
+                       <button onClick={() => handleAnalyzeGrammarClick(msg)} disabled={analyzingMessageId === msg.id} className={`transition-all duration-300 p-1.5 rounded-full shadow-sm mb-1 z-10 ${analyzingMessageId === msg.id ? 'bg-rose-100 text-rose-400 cursor-wait' : 'bg-white/80 hover:bg-white text-rose-300 opacity-0 group-hover/message:opacity-100'} ${msg.correction ? 'text-rose-500' : ''}`}>
+                         {analyzingMessageId === msg.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                       </button>
+                     }
+                     <div className={`px-5 py-4 text-[15px] leading-relaxed shadow-sm font-sans relative ${msg.sender === 'user' ? 'bg-rose-400 text-white rounded-[24px] rounded-br-[4px]' : 'bg-white text-gray-700 border border-rose-100 rounded-[24px] rounded-bl-[4px]'}`}>
+                         <ReactMarkdown
+                           components={{
+                             strong: ({node, ...props}) => <strong className="font-bold text-[1.05em]" {...props} />,
+                             p: ({node, ...props}) => <p className="mb-4 last:mb-0" {...props} />,
+                             ul: ({node, ...props}) => <ul className="list-none mb-4 last:mb-0 space-y-2" {...props} />,
+                             li: ({node, ...props}) => <li className="flex items-start gap-2 relative before:content-[''] before:w-1.5 before:h-1.5 before:rounded-full before:bg-rose-300 before:absolute before:top-2 before:left-0 pl-4" {...props} />,
+                             h1: ({node, ...props}) => <h1 className="text-xl font-bold mb-3 text-rose-500" {...props} />,
+                             h2: ({node, ...props}) => <h2 className="text-lg font-bold mb-3 text-rose-500" {...props} />,
+                             h3: ({node, ...props}) => <h3 className="text-base font-bold mb-3 text-rose-500" {...props} />
+                           }}
+                         >
+                           {msg.text}
+                         </ReactMarkdown>
+                         <p className={`text-[10px] mt-2 text-right ${msg.sender === 'user' ? 'text-white/70' : 'text-gray-400'}`}>
+                           {msg.timestamp}
+                         </p>
+                     </div>
+                     {msg.sender === 'persona' && 
+                       <button onClick={() => speakText(msg.text, activeContact.id, msg.id)} disabled={loadingAudioId === msg.id} className={`p-2 rounded-full transition-all mb-1 flex-shrink-0 ${speakingMessageId === msg.id ? 'bg-rose-100 text-rose-500' : 'text-rose-200 hover:text-rose-400'}`}>
+                         {loadingAudioId === msg.id ? <Loader2 className="w-4 h-4 animate-spin" /> : (speakingMessageId === msg.id ? <StopCircle className="w-4 h-4 fill-current" /> : <Volume2 className="w-4 h-4" />)}
+                       </button>
+                     }
+                   </div>
+                 </motion.div> 
+               ))}
                {isTyping && <div className="flex justify-start"><img src={activeContact.avatar} className="w-8 h-8 rounded-full mr-2 self-end mb-1" /><div className="bg-white border border-rose-100 rounded-2xl px-4 py-3 shadow-sm flex items-center gap-1"><span className="w-1.5 h-1.5 bg-rose-300 rounded-full animate-bounce"></span><span className="w-1.5 h-1.5 bg-rose-300 rounded-full animate-bounce"></span><span className="w-1.5 h-1.5 bg-rose-300 rounded-full animate-bounce"></span></div></div>}
                <div ref={messagesEndRef} />
             </div>
