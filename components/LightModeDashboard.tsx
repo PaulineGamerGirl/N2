@@ -12,7 +12,8 @@ interface LightModeDashboardProps {
 }
 
 const LightModeDashboard: React.FC<LightModeDashboardProps> = ({ onOpenLogModal }) => {
-  const { vocabCount, immersionMinutes, grammarPoints, streak, completedDates } = useProgressStore();
+  const { baseVocab, manualVocabCount, immersionMinutes, grammarPoints, streak, completedDates } = useProgressStore();
+  const vocabCount = baseVocab + manualVocabCount;
   const [isYearlyModalOpen, setIsYearlyModalOpen] = useState(false);
 
   const VOCAB_GOAL = 8000;

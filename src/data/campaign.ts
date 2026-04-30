@@ -1,4 +1,4 @@
-import { QuestPhase } from '../types';
+import { QuestPhase } from '../../types';
 
 // Adjusted to 2024/2025 cycle to align with "Phase 1 Completed" status relative to current real-time (early 2025).
 // If we used 2025/2026, everything would be "Locked" and the Dashboard would show "Pre-Game".

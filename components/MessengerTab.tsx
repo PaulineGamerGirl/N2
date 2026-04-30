@@ -9,6 +9,7 @@ import CreateContactModal from './CreateContactModal';
 import { Phone, Video, MoreVertical, Send, Smile, ChevronLeft, Languages, Sparkles, PenLine, Lightbulb, Loader2, Volume2, StopCircle, Play, Square, Target, Map, Swords, Trophy, RefreshCcw, Dice5, LogOut, Dumbbell, Search, GraduationCap, Book, ChevronDown, ChevronRight, LayoutGrid, List, Wand2, X } from 'lucide-react';
 import { GoogleGenAI, Type, Modality } from "@google/genai";
 import { useProgressStore } from '../store/progressStore';
+import { HARDWIRED_GRAMMAR } from '../constants/grammarData';
 import { ParsedGrammarPoint } from '../utils/grammarParser';
 
 // --- HELPERS FOR AUDIO DECODING ---
@@ -114,6 +115,7 @@ interface DrillScenarioResponse {
   context: string;
   systemInstruction: string;
   initialMessage: string;
+  mode: 'creative' | 'realistic';
 }
 
 const DEFAULT_MISSION_SCENARIOS: MissionScenario[] = [
@@ -346,21 +348,38 @@ const SummonOverlay: React.FC<{ persona: PersonaProfile; onComplete: () => void 
 };
 
 // --- HELPER: SYSTEM INSTRUCTION RESOLVER ---
-const resolveSystemInstruction = (contact: PersonaProfile): string => {
+const resolveSystemInstruction = (contact: PersonaProfile, drillPoint?: ParsedGrammarPoint, drillMode?: 'creative' | 'realistic'): string => {
   const isDrill = contact.id === 'grammar_drill';
   const isMission = contact.id === 'mission_bot';
 
   let behaviorInstruction = "";
 
   if (isDrill) {
-    behaviorInstruction = `
-      ${contact.systemInstruction}
-      
-      --- MODE: GRAMMAR DRILL ---
-      1. CRITICAL: If the student makes a mistake, EXPLAIN IT IN ENGLISH first, then provide the JAPANESE correction.
-      2. If the student is correct, continue the roleplay in JAPANESE.
-      3. Maintain the persona defined above.
-    `;
+    if (drillMode === 'creative') {
+      behaviorInstruction = `
+        ${contact.systemInstruction}
+        
+        --- MODE: CREATIVE FANTASY DRILL ---
+        1. You are roleplaying in the fantastical context defined above.
+        2. Speak in ENGLISH for the story narration and task descriptions.
+        3. Speak in JAPANESE ONLY for the direct dialogue of your persona character.
+        4. TASK: In every response:
+           a) Correct any Japanese mistakes Pauline made (in ENGLISH with JAPANESE corrections).
+           b) Continue the immersive story (in ENGLISH).
+           c) Present a clear task for the next turn that FORCES the use of "${drillPoint?.point || 'target grammar'}" (in ENGLISH).
+           d) Ask Pauline a follow-up question in characterizing JAPANESE.
+        5. TONE: Immersive, encouraging, and slightly high-stakes.
+      `;
+    } else {
+      behaviorInstruction = `
+        ${contact.systemInstruction}
+        
+        --- MODE: REALISTIC JAPANESE DRILL ---
+        1. CRITICAL: If the student makes a mistake, EXPLAIN IT IN ENGLISH first, then provide the JAPANESE correction.
+        2. If the student is correct, continue the roleplay NATURALLY in JAPANESE.
+        3. Maintain a realistic persona interaction (Standard conversation).
+      `;
+    }
   } else if (isMission) {
     behaviorInstruction = `
       ${contact.systemInstruction}
@@ -436,7 +455,7 @@ const generateGeminiResponse = async (
         responseSchema: {
           type: Type.OBJECT,
           properties: {
-            reply: { type: Type.STRING },
+            reply: { type: Type.STRING, description: "Your Japanese response or combined English/Japanese feedback as per instructions" },
             suggestions: {
               type: Type.ARRAY,
               items: { type: Type.STRING }
@@ -535,53 +554,68 @@ const analyzeGrammar = async (text: string): Promise<CorrectionData> => {
   }
 };
 
-const generateDrillScenario = async (point: ParsedGrammarPoint): Promise<DrillScenarioResponse> => {
+const generateDrillScenario = async (point: ParsedGrammarPoint, mode: 'creative' | 'realistic'): Promise<DrillScenarioResponse> => {
   if (!process.env.API_KEY) {
     throw new Error("API Key missing");
   }
 
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-  const prompt = `
+  const creativePrompt = `
     You are an expert Japanese teacher. The student's name is Pauline.
     Target Grammar: "${point.point}"
     Meaning: "${point.meaning}"
 
-    Create a short, unique, and HIGHLY CREATIVE roleplay scenario to practice this grammar.
-    
-    CREATIVE EXAMPLES:
-    - Trapped in a sentient, angry library where books attack if you don't use correct grammar.
-    - Interrogated by a futuristic robot guard at a spaceport.
-    - Bargaining with a grumpy forest spirit who controls your path.
-    - Negotiating with a dragon who only listens to polite but firm requests.
+    Create a HIGHLY CREATIVE, HIGH-STAKES FANTASY roleplay scenario.
+    EXAMPLES: Sentient library, spaceport interrogation, forest spirit bargain, dragon negotiation.
 
     Requirements:
     1. Define a Persona (Name, Role, Personality).
-    2. Define a Context (High stakes, immersive, or fantastical).
+    2. Define a Context (High stakes, fantastical).
     3. System Instruction for the AI:
-       - You are roleplaying as the defined Persona.
-       - Speak natural Japanese consistent with the persona.
-       - Address the student as Pauline (Pauline-san, etc).
-       - Guide the conversation so Pauline MUST use "${point.point}".
-       - CORRECTION RULE: If Pauline makes a mistake or uses the target grammar incorrectly:
-         a) Explain the error AND the grammar rule in ENGLISH (so she understands why).
-         b) Provide the corrected JAPANESE sentence.
-         c) IMMEDIATELY switch back to the Roleplay Persona and ask a follow-up question in JAPANESE to continue the scene.
-    4. Initial Message: Start the roleplay in Japanese, addressing Pauline.
-
-    Output strictly valid JSON.
+       - You are roleplaying as the Persona.
+       - Use ENGLISH for narration and setting the scene.
+       - Use JAPANESE for character dialogue.
+       - Every response MUST include:
+         a) Corrections of Pauline's Japanese (English explanations + Japanese fixes).
+         b) Continuation of the story (English).
+         c) A NEW situation/task to keep practicing "${point.point}" (English).
+    4. Initial Message: 
+       - Start with a vivid English description of the fantastical setting.
+       - Introduce the Persona.
+       - Present the FIRST TASK in English that requires using "${point.point}".
+       - End with a character greeting in Japanese.
   `;
+
+  const realisticPrompt = `
+    You are an expert Japanese teacher. The student's name is Pauline.
+    Target Grammar: "${point.point}"
+    Meaning: "${point.meaning}"
+
+    Create a REALISTIC, EVERYDAY Japanese roleplay scenario.
+    CONTEXT: Talking to a normal person (clerk, friend, colleague, stranger).
+
+    Requirements:
+    1. Define a Persona (Name, Role, Personality).
+    2. Define a Context (Realistic daily life).
+    3. System Instruction for the AI:
+       - Speak ONLY in Japanese for the roleplay.
+       - Use English ONLY for grammar corrections if she makes mistakes.
+    4. Initial Message: Start naturally in Japanese, addressing Pauline.
+  `;
+
+  const finalPrompt = mode === 'creative' ? creativePrompt : realisticPrompt;
 
   try {
     const response = await callWithFallback(ai, {
-      contents: prompt,
+      contents: finalPrompt,
       config: {
         responseMimeType: 'application/json',
         responseSchema: {
           type: Type.OBJECT,
           properties: {
-            characterName: { type: Type.STRING, description: "The name of the persona (e.g. Tanaka-san)" },
-            roleDescription: { type: Type.STRING, description: "Short description of role (e.g. Strict Teacher)" },
+            characterName: { type: Type.STRING },
+            roleDescription: { type: Type.STRING },
             context: { type: Type.STRING },
             systemInstruction: { type: Type.STRING },
             initialMessage: { type: Type.STRING }
@@ -592,7 +626,7 @@ const generateDrillScenario = async (point: ParsedGrammarPoint): Promise<DrillSc
     }, 'pro');
 
     if (response.text) {
-      return JSON.parse(response.text) as DrillScenarioResponse;
+      return { ...(JSON.parse(response.text)), mode } as DrillScenarioResponse;
     }
     throw new Error("Empty response text");
   } catch (error) {
@@ -601,6 +635,61 @@ const generateDrillScenario = async (point: ParsedGrammarPoint): Promise<DrillSc
   }
 };
 
+
+// --- SUB-COMPONENT: CIRCULAR PROGRESS ---
+const CircularProgress: React.FC<{ percentage: number; size?: number; strokeWidth?: number }> = ({ percentage, size = 24, strokeWidth = 3 }) => {
+  const radius = (size - strokeWidth) / 2;
+  const circumference = radius * 2 * Math.PI;
+  const offset = circumference - (percentage / 100) * circumference;
+
+  return (
+    <div className="relative" style={{ width: size, height: size }}>
+      <svg className="transform -rotate-90 w-full h-full">
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke="currentColor"
+          strokeWidth={strokeWidth}
+          fill="transparent"
+          className="text-gray-100"
+        />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke="currentColor"
+          strokeWidth={strokeWidth}
+          fill="transparent"
+          strokeDasharray={circumference}
+          style={{ strokeDashoffset: offset }}
+          strokeLinecap="round"
+          className="text-rose-400 transition-all duration-500 ease-out"
+        />
+      </svg>
+    </div>
+  );
+};
+
+// --- SUB-COMPONENT: MASTERY LIGHTS ---
+const MasteryLights: React.FC<{ count: number }> = ({ count }) => {
+  const lights = Math.min(count, 3);
+  const showPlus = count > 3;
+
+  return (
+    <div className="flex items-center gap-1">
+      {[...Array(3)].map((_, i) => (
+        <div
+          key={i}
+          className={`w-2 h-2 rounded-full transition-all duration-300 ${
+            i < lights ? 'bg-green-400 shadow-[0_0_8px_rgba(74,222,128,0.5)] scale-110' : 'bg-gray-200'
+          }`}
+        />
+      ))}
+      {showPlus && <span className="text-[10px] font-bold text-green-500 ml-0.5">+</span>}
+    </div>
+  );
+};
 
 const MessengerTab: React.FC = () => {
   // --- STATE ---
@@ -684,10 +773,14 @@ const MessengerTab: React.FC = () => {
   const [isGeneratingMissions, setIsGeneratingMissions] = useState(false);
 
   const [activeDrill, setActiveDrill] = useState<ParsedGrammarPoint | null>(null);
+  const [drillMode, setDrillMode] = useState<'creative' | 'realistic' | null>(null);
   const [isGeneratingDrill, setIsGeneratingDrill] = useState(false);
+  const [pointToDrill, setPointToDrill] = useState<ParsedGrammarPoint | null>(null);
+  const [showDrillModeSelect, setShowDrillModeSelect] = useState(false);
+  
   const [expandedBookId, setExpandedBookId] = useState<string | null>(null);
   const [expandedChapterId, setExpandedChapterId] = useState<string | null>(null);
-  const { grammarDatabase, addActivityLog } = useProgressStore();
+  const { grammarDatabase, addActivityLog, grammarPracticeCounts, incrementGrammarPractice } = useProgressStore();
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -716,11 +809,23 @@ const MessengerTab: React.FC = () => {
     return 0;
   });
 
-  const groupedGrammar = React.useMemo(() => {
+  const enrichedBooks = React.useMemo(() => {
     const groups: Record<string, { id: string, title: string, chapters: { id: string, title: string, points: ParsedGrammarPoint[] }[] }> = {};
-    const db = grammarDatabase as Record<string, ParsedGrammarPoint[]>;
+    
+    // Merge hardwired and user database
+    const combinedDb: Record<string, ParsedGrammarPoint[]> = { ...HARDWIRED_GRAMMAR };
+    Object.entries(grammarDatabase).forEach(([key, points]) => {
+      if (!combinedDb[key]) {
+        combinedDb[key] = points;
+      } else {
+        // Avoid total duplicates if they have the same point name
+        const existingPoints = combinedDb[key].map(p => p.point);
+        const uniquePoints = points.filter(p => !existingPoints.includes(p.point));
+        combinedDb[key] = [...combinedDb[key], ...uniquePoints];
+      }
+    });
 
-    Object.entries(db).forEach(([key, points]) => {
+    Object.entries(combinedDb).forEach(([key, points]) => {
         if (!points || points.length === 0) return;
         const parts = key.split('_');
         if (parts.length < 2) return;
@@ -746,16 +851,36 @@ const MessengerTab: React.FC = () => {
         if (!order.includes(id)) sortedBooks.push(groups[id]);
     });
 
-    sortedBooks.forEach(book => {
-        book.chapters.sort((a, b) => {
-            const numA = parseInt(a.id.split('_')[1] || '0');
-            const numB = parseInt(b.id.split('_')[1] || '0');
-            return numA - numB;
-        });
+    const enrichedBooks = sortedBooks.map(book => {
+      let bookTotalPoints = 0;
+      let bookPracticedPoints = 0;
+
+      const enrichedChapters = book.chapters.map(chap => {
+        const practicedCount = chap.points.filter(p => (grammarPracticeCounts[p.id] || 0) > 0).length;
+        bookTotalPoints += chap.points.length;
+        bookPracticedPoints += practicedCount;
+        
+        return {
+          ...chap,
+          progress: (practicedCount / chap.points.length) * 100,
+          practicedCount,
+          totalCount: chap.points.length
+        };
+      }).sort((a, b) => {
+        const numA = parseInt(a.id.split('_')[1] || '0');
+        const numB = parseInt(b.id.split('_')[1] || '0');
+        return numA - numB;
+      });
+
+      return {
+        ...book,
+        chapters: enrichedChapters,
+        progress: (bookPracticedPoints / bookTotalPoints) * 100
+      };
     });
 
-    return sortedBooks;
-  }, [grammarDatabase]);
+    return enrichedBooks;
+  }, [grammarDatabase, grammarPracticeCounts]);
 
   // --- EFFECTS ---
   useEffect(() => {
@@ -849,11 +974,18 @@ const MessengerTab: React.FC = () => {
     setContacts(prev => ({ ...prev, 'mission_bot': DEFAULT_CONTACTS['mission_bot'] }));
   };
 
-  const handleSelectDrill = async (point: ParsedGrammarPoint) => {
+  const handleSelectDrillPoint = (point: ParsedGrammarPoint) => {
+    setPointToDrill(point);
+    setShowDrillModeSelect(true);
+  };
+
+  const handleSelectDrill = async (point: ParsedGrammarPoint, mode: 'creative' | 'realistic') => {
     setActiveDrill(point);
+    setDrillMode(mode);
     setIsGeneratingDrill(true);
+    setShowDrillModeSelect(false);
     try {
-        const scenario = await generateDrillScenario(point);
+        const scenario = await generateDrillScenario(point, mode);
         setContacts(prev => ({
             ...prev,
             'grammar_drill': {
@@ -904,6 +1036,7 @@ const MessengerTab: React.FC = () => {
 
   const handleEndDrill = () => {
     setActiveDrill(null);
+    setDrillMode(null);
     setContacts(prev => ({ ...prev, 'grammar_drill': DEFAULT_CONTACTS['grammar_drill'] }));
   };
   
@@ -934,7 +1067,13 @@ const MessengerTab: React.FC = () => {
     const historySnapshot = messages[contactId] || [];
     setMessages(prev => ({ ...prev, [contactId]: [...(prev[contactId] || []), userMsg] }));
     setIsTyping(true);
-    const aiResponse = await generateGeminiResponse(resolveSystemInstruction(activeContact), historySnapshot, userText);
+
+    if (activeDrill && (messages[contactId]?.length || 0) === 1) {
+      incrementGrammarPractice(activeDrill.id);
+    }
+
+    const systemInstruction = resolveSystemInstruction(activeContact, activeDrill || undefined, drillMode || undefined);
+    const aiResponse = await generateGeminiResponse(systemInstruction, historySnapshot, userText);
     setIsTyping(false);
     setMessages(prev => {
       const aiMsg: Message = { id: (Date.now() + 1).toString(), sender: 'persona', text: aiResponse.reply, timestamp: 'Just now', createdAt: Date.now() };
@@ -957,7 +1096,8 @@ const MessengerTab: React.FC = () => {
         if (hoursPassed > 4) prompt = "It has been a few hours since we last spoke. Acknowledge the time gap, and propose a NEW topic.";
         else prompt = "The user is listening right now. Continue your previous train of thought or add a follow-up question.";
     }
-    const aiResponse = await generateGeminiResponse(resolveSystemInstruction(activeContact), historySnapshot, prompt);
+    const systemInstruction = resolveSystemInstruction(activeContact, activeDrill || undefined, drillMode || undefined);
+    const aiResponse = await generateGeminiResponse(systemInstruction, historySnapshot, prompt);
     setIsTyping(false);
     setMessages(prev => {
         const aiMsg: Message = { id: (Date.now() + 1).toString(), sender: 'persona', text: aiResponse.reply, timestamp: 'Just now', createdAt: Date.now() };
@@ -1145,8 +1285,62 @@ const MessengerTab: React.FC = () => {
                         </div>
                    </div>
                    <div className="flex-1 overflow-y-auto p-8 bg-gray-50/50 relative">
-                       <AnimatePresence>{isGeneratingDrill && ( <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 z-50 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center"><div className="relative"><div className="w-20 h-20 border-4 border-rose-200 border-t-rose-500 rounded-full animate-spin"></div><div className="absolute inset-0 flex items-center justify-center"><Sparkles className="w-8 h-8 text-rose-400 animate-pulse" /></div></div><h3 className="mt-6 text-xl font-bold font-coquette-header text-gray-800 animate-pulse">Constructing Simulation</h3><p className="text-sm text-rose-400 font-bold uppercase tracking-widest mt-2">Generating Persona...</p></motion.div> )}</AnimatePresence>
-                       {groupedGrammar.length === 0 ? ( <div className="flex flex-col items-center justify-center h-full text-gray-400 gap-4"><GraduationCap className="w-12 h-12 opacity-20" /><p>No grammar notes found.</p></div> ) : ( <div className="max-w-4xl mx-auto space-y-4">{groupedGrammar.map(book => ( <div key={book.id} className="border border-rose-100 rounded-2xl overflow-hidden bg-white shadow-sm transition-all hover:shadow-md"><button onClick={() => toggleBook(book.id)} className="w-full flex items-center justify-between p-5 bg-white hover:bg-rose-50/30 transition-colors"><div className="flex items-center gap-4"><div className={`p-2 rounded-lg transition-colors ${expandedBookId === book.id ? 'bg-rose-100 text-rose-500' : 'bg-gray-50 text-gray-400'}`}><Book className="w-5 h-5" /></div><div className="text-left"><h3 className="font-bold text-lg text-gray-800 font-coquette-header">{book.title}</h3><p className="text-xs text-gray-400 uppercase tracking-widest font-bold">{book.chapters.length} Chapters</p></div></div>{expandedBookId === book.id ? <ChevronDown className="w-5 h-5 text-rose-400" /> : <ChevronRight className="w-5 h-5 text-gray-300" />}</button><AnimatePresence>{expandedBookId === book.id && ( <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="border-t border-rose-50 bg-rose-50/10"><div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-3">{book.chapters.map(chap => ( <div key={chap.id} className="bg-white border border-rose-100 rounded-xl overflow-hidden"><button onClick={() => toggleChapter(chap.id)} className={`w-full flex items-center justify-between p-3 px-4 transition-colors ${expandedChapterId === chap.id ? 'bg-rose-50 text-rose-600' : 'hover:bg-gray-50 text-gray-600'}`}><div className="flex items-center gap-2"><LayoutGrid className="w-4 h-4 opacity-50" /><span className="font-bold text-sm font-coquette-body">{chap.title}</span></div><div className="flex items-center gap-2"><span className="text-[10px] px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full font-bold">{chap.points.length}</span>{expandedChapterId === chap.id ? <ChevronDown className="w-3 h-3 opacity-50" /> : <ChevronRight className="w-3 h-3 opacity-50" />}</div></button><AnimatePresence>{expandedChapterId === chap.id && ( <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="border-t border-gray-100 bg-gray-50/50"><ul className="divide-y divide-gray-100">{chap.points.map(pt => ( <li key={pt.id}><button onClick={() => handleSelectDrill(pt)} disabled={isGeneratingDrill} className="w-full text-left p-3 pl-10 hover:bg-white hover:text-rose-500 transition-colors flex items-center gap-3 group disabled:opacity-50"><div className="w-1.5 h-1.5 rounded-full bg-gray-300 group-hover:bg-rose-400" /><div className="flex-1"><div className="font-bold text-sm text-gray-700 group-hover:text-rose-600">{pt.point}</div><div className="text-xs text-gray-400 truncate">{pt.meaning}</div></div><Play className="w-3 h-3 opacity-0 group-hover:opacity-100 text-rose-400" /></button></li> ))}</ul></motion.div> )}</AnimatePresence></div> ))}</div></motion.div> )}</AnimatePresence></div> ))}</div> )}
+                       <AnimatePresence>
+                        {showDrillModeSelect && pointToDrill && (
+                          <motion.div 
+                            initial={{ opacity: 0, scale: 0.9 }} 
+                            animate={{ opacity: 1, scale: 1 }} 
+                            exit={{ opacity: 0, scale: 0.9 }} 
+                            className="absolute inset-0 z-50 bg-white/90 backdrop-blur-md flex flex-col items-center justify-center p-6"
+                          >
+                             <div className="bg-white rounded-3xl shadow-2xl border border-rose-100 p-8 max-w-md w-full text-center space-y-6">
+                                <div className="space-y-2">
+                                  <div className="w-16 h-16 rounded-full bg-rose-50 flex items-center justify-center mx-auto mb-4">
+                                    <Sparkles className="w-8 h-8 text-rose-400" />
+                                  </div>
+                                  <h3 className="text-2xl font-bold font-coquette-header text-gray-800">Select Dojo Mode</h3>
+                                  <p className="text-sm text-gray-500 font-coquette-body">How would you like to practice <span className="font-bold text-rose-500">{pointToDrill.point}</span>?</p>
+                                </div>
+
+                                <div className="grid grid-cols-1 gap-4">
+                                   <button 
+                                     onClick={() => handleSelectDrill(pointToDrill, 'creative')}
+                                     className="group p-5 rounded-2xl border-2 border-rose-100 hover:border-rose-400 bg-white hover:bg-rose-50 transition-all text-left flex items-start gap-4"
+                                   >
+                                      <div className="p-3 rounded-xl bg-rose-50 text-rose-500 group-hover:bg-rose-400 group-hover:text-white transition-colors">
+                                        <Wand2 className="w-6 h-6" />
+                                      </div>
+                                      <div>
+                                        <h4 className="font-bold text-gray-800 group-hover:text-rose-600 transition-colors">Fantasy / High-Stakes</h4>
+                                        <p className="text-xs text-gray-400 leading-tight mt-1">Creative stories in English, RPG-style practice with character dialogue in Japanese.</p>
+                                      </div>
+                                   </button>
+
+                                   <button 
+                                     onClick={() => handleSelectDrill(pointToDrill, 'realistic')}
+                                     className="group p-5 rounded-2xl border-2 border-rose-100 hover:border-rose-400 bg-white hover:bg-rose-50 transition-all text-left flex items-start gap-4"
+                                   >
+                                      <div className="p-3 rounded-xl bg-gray-50 text-gray-400 group-hover:bg-rose-400 group-hover:text-white transition-colors">
+                                        <GraduationCap className="w-6 h-6" />
+                                      </div>
+                                      <div>
+                                        <h4 className="font-bold text-gray-800 group-hover:text-rose-600 transition-colors">Realistic / Natural</h4>
+                                        <p className="text-xs text-gray-400 leading-tight mt-1">Standard everyday situations in full Japanese. Interaction with real-life scenarios.</p>
+                                      </div>
+                                   </button>
+                                </div>
+
+                                <button 
+                                  onClick={() => setShowDrillModeSelect(false)}
+                                  className="text-sm font-bold text-rose-300 hover:text-rose-500 transition-colors"
+                                >
+                                  Cancel
+                                </button>
+                             </div>
+                          </motion.div>
+                        )}
+                        {isGeneratingDrill && ( <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 z-50 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center"><div className="relative"><div className="w-20 h-20 border-4 border-rose-200 border-t-rose-500 rounded-full animate-spin"></div><div className="absolute inset-0 flex items-center justify-center"><Sparkles className="w-8 h-8 text-rose-400 animate-pulse" /></div></div><h3 className="mt-6 text-xl font-bold font-coquette-header text-gray-800 animate-pulse">Constructing Simulation</h3><p className="text-sm text-rose-400 font-bold uppercase tracking-widest mt-2">Generating Persona...</p></motion.div> )}</AnimatePresence>
+                       {enrichedBooks.length === 0 ? ( <div className="flex flex-col items-center justify-center h-full text-gray-400 gap-4"><GraduationCap className="w-12 h-12 opacity-20" /><p>No grammar notes found.</p></div> ) : ( <div className="max-w-4xl mx-auto space-y-4">{enrichedBooks.map(book => ( <div key={book.id} className="border border-rose-100 rounded-2xl overflow-hidden bg-white shadow-sm transition-all hover:shadow-md"><button onClick={() => toggleBook(book.id)} className="w-full flex items-center justify-between p-5 bg-white hover:bg-rose-50/30 transition-colors"><div className="flex items-center gap-4"><div className="relative group"><div className={`p-2 rounded-lg transition-colors ${expandedBookId === book.id ? 'bg-rose-100 text-rose-500' : 'bg-gray-50 text-gray-400'}`}><Book className="w-5 h-5" /></div><div className="absolute -top-1 -right-1"><CircularProgress percentage={book.progress} size={18} strokeWidth={2} /></div></div><div className="text-left"><h3 className="font-bold text-lg text-gray-800 font-coquette-header">{book.title}</h3><p className="text-xs text-gray-400 uppercase tracking-widest font-bold">{book.chapters.length} Chapters</p></div></div>{expandedBookId === book.id ? <ChevronDown className="w-5 h-5 text-rose-400" /> : <ChevronRight className="w-5 h-5 text-gray-300" />}</button><AnimatePresence>{expandedBookId === book.id && ( <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="border-t border-rose-50 bg-rose-50/10"><div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-3">{book.chapters.map(chap => ( <div key={chap.id} className="bg-white border border-rose-100 rounded-xl overflow-hidden"><button onClick={() => toggleChapter(chap.id)} className={`w-full flex items-center justify-between p-3 px-4 transition-colors ${expandedChapterId === chap.id ? 'bg-rose-50 text-rose-600' : 'hover:bg-gray-50 text-gray-600'}`}><div className="flex items-center gap-2"><div className="relative"><LayoutGrid className="w-4 h-4 opacity-50" /><div className="absolute -top-1 -right-1"><CircularProgress percentage={chap.progress} size={12} strokeWidth={2} /></div></div><span className="font-bold text-sm font-coquette-body">{chap.title}</span></div><div className="flex items-center gap-2"><span className="text-[10px] px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full font-bold">{chap.practicedCount}/{chap.totalCount}</span>{expandedChapterId === chap.id ? <ChevronDown className="w-3 h-3 opacity-50" /> : <ChevronRight className="w-3 h-3 opacity-50" />}</div></button><AnimatePresence>{expandedChapterId === chap.id && ( <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="border-t border-gray-100 bg-gray-50/50"><ul className="divide-y divide-gray-100">{chap.points.map(pt => ( <li key={pt.id}><button onClick={() => handleSelectDrillPoint(pt)} disabled={isGeneratingDrill} className="w-full text-left p-3 pl-10 hover:bg-white hover:text-rose-500 transition-colors flex items-center gap-3 group disabled:opacity-50"><div className="w-1.5 h-1.5 rounded-full bg-gray-300 group-hover:bg-rose-400" /><div className="flex-1"><div className="flex items-center justify-between"><div className="font-bold text-sm text-gray-700 group-hover:text-rose-600">{pt.point}</div><MasteryLights count={grammarPracticeCounts[pt.id] || 0} /></div><div className="text-xs text-gray-400 truncate">{pt.meaning}</div></div><Play className="w-3 h-3 opacity-0 group-hover:opacity-100 text-rose-400" /></button></li> ))}</ul></motion.div> )}</AnimatePresence></div> ))}</div></motion.div> )}</AnimatePresence></div> ))}</div> )}
                    </div>
                </div>
             )}

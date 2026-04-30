@@ -8,6 +8,7 @@ import { ExamMode } from '../types';
 import SimulationModal from './SimulationModal';
 import GrammarListModal from './GrammarListModal';
 import { ParsedGrammarPoint } from '../utils/grammarParser';
+import { HARDWIRED_GRAMMAR } from '../constants/grammarData';
 
 // --- Types & Data ---
 type ModuleId = 'genki1' | 'genki2' | 'quartet1' | 'quartet2';
@@ -63,9 +64,22 @@ const SyntaxArchive: React.FC = () => {
   // Derive all available points from mastered chapters
   const availablePoints = useMemo(() => {
     const points: ParsedGrammarPoint[] = [];
+    
+    // Combine hardwired and database for complete availability
+    const combinedDb: Record<string, ParsedGrammarPoint[]> = { ...HARDWIRED_GRAMMAR };
+    Object.entries(grammarDatabase).forEach(([key, pList]) => {
+      if (!combinedDb[key]) {
+        combinedDb[key] = pList;
+      } else {
+        const existing = combinedDb[key].map(p => p.point);
+        const unique = pList.filter(p => !existing.includes(p.point));
+        combinedDb[key] = [...combinedDb[key], ...unique];
+      }
+    });
+
     masteredChapters.forEach(chapId => {
-      if (grammarDatabase[chapId]) {
-        points.push(...grammarDatabase[chapId]);
+      if (combinedDb[chapId]) {
+        points.push(...combinedDb[chapId]);
       }
     });
     return points;
@@ -113,8 +127,13 @@ const SyntaxArchive: React.FC = () => {
   }, []);
 
   // --- LOGIC ---
-  const unlockedChapters = Object.keys(grammarDatabase).filter(key => 
-    grammarDatabase[key] && grammarDatabase[key].length > 0
+  const combinedDbCount: Record<string, ParsedGrammarPoint[]> = { ...HARDWIRED_GRAMMAR };
+  Object.entries(grammarDatabase).forEach(([key, pList]) => {
+    if (!combinedDbCount[key]) combinedDbCount[key] = pList;
+  });
+
+  const unlockedChapters = Object.keys(combinedDbCount).filter(key => 
+    combinedDbCount[key] && combinedDbCount[key].length > 0
   );
   const unlockedCount = unlockedChapters.length;
   const selectedCount = masteredChapters.length;
@@ -145,7 +164,10 @@ const SyntaxArchive: React.FC = () => {
 
   const handleOpenGrammarModal = (e: React.MouseEvent, title: string, uniqueId: string) => {
     e.stopPropagation();
-    const points = grammarDatabase[uniqueId] || [];
+    const hardwired = HARDWIRED_GRAMMAR[uniqueId] || [];
+    const dbPoints = grammarDatabase[uniqueId] || [];
+    const existing = hardwired.map(p => p.point);
+    const points = [...hardwired, ...dbPoints.filter(p => !existing.includes(p.point))];
     setModalData({ isOpen: true, title, points });
   };
 
@@ -261,7 +283,7 @@ const SyntaxArchive: React.FC = () => {
                                  const chapterNum = mod.startChapter + i;
                                  const uniqueId = `${mod.id}_${chapterNum}`;
                                  const isSelected = masteredChapters.includes(uniqueId);
-                                 const chapterPoints = grammarDatabase[uniqueId] || [];
+                                 const chapterPoints = combinedDbCount[uniqueId] || [];
                                  const hasData = chapterPoints.length > 0;
                                  return (
                                    <div key={uniqueId} className="flex flex-col gap-1">

@@ -5,6 +5,7 @@ import { isYesterday, isToday } from 'date-fns';
 import { parseAnkiExport, ParsedGrammarPoint } from '../utils/grammarParser';
 import { ActivityLogEntry, ActivityCategory } from '../types';
 import { seedData } from '../data/seedData';
+import { HARDWIRED_GRAMMAR } from '../constants/grammarData';
 
 interface LogEntry {
   id: string;
@@ -46,6 +47,7 @@ interface ProgressState {
   masteredChapters: string[];
   grammarContext: string;
   grammarDatabase: Record<string, ParsedGrammarPoint[]>;
+  grammarPracticeCounts: Record<string, number>; // Maps grammar point ID to count
   dailyChecklist: Record<string, boolean>;
   completedDates: Record<string, boolean>;
   keepsakes: Keepsake[];
@@ -63,6 +65,7 @@ interface ProgressState {
   toggleDailyTask: (dateStr: string, taskId: string, type: 'vocab' | 'grammar' | 'immersion', value: number) => void;
   toggleDate: (dateStr: string) => void;
   addKeepsake: (item: Keepsake) => void;
+  incrementGrammarPractice: (pointId: string) => void;
   updateKeepsake: (id: string, updates: Partial<Keepsake>) => void;
   removeKeepsake: (id: string) => void;
   addMinutesToKeepsake: (id: string, minutes: number) => void;
@@ -85,7 +88,8 @@ export const useProgressStore = create<ProgressState>()(
       logs: [],
       masteredChapters: [],
       grammarContext: '',
-      grammarDatabase: {},
+      grammarDatabase: HARDWIRED_GRAMMAR,
+      grammarPracticeCounts: {},
       dailyChecklist: {},
       completedDates: {}, // Start empty so Pauline can add hearts to grow vocab
       keepsakes: [
@@ -249,6 +253,13 @@ export const useProgressStore = create<ProgressState>()(
       },
 
       addKeepsake: (item) => set(state => ({ keepsakes: [item, ...state.keepsakes] })),
+      incrementGrammarPractice: (pointId) => set(state => ({
+        grammarPracticeCounts: {
+          ...state.grammarPracticeCounts,
+          [pointId]: (state.grammarPracticeCounts[pointId] || 0) + 1
+        },
+        grammarPoints: state.grammarPoints + 1
+      })),
       updateKeepsake: (id, updates) => set(state => ({
         keepsakes: state.keepsakes.map(item => item.id === id ? { ...item, ...updates } : item)
       })),
@@ -262,7 +273,7 @@ export const useProgressStore = create<ProgressState>()(
       resetProgress: () => set({
         baseVocab: 2500, manualVocabCount: 0, immersionMinutes: 0, grammarPoints: 0, streak: 0,
         lastLogDate: null, logs: [], masteredChapters: [], grammarContext: '',
-        grammarDatabase: {}, dailyChecklist: {}, completedDates: {},
+        grammarDatabase: HARDWIRED_GRAMMAR, grammarPracticeCounts: {}, dailyChecklist: {}, completedDates: {},
         keepsakes: [], activityLogs: [], currentSessionStartTime: null
       }),
 
