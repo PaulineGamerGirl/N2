@@ -365,18 +365,24 @@ const resolveSystemInstruction = (contact: PersonaProfile, drillPoint?: ParsedGr
 
         Instructions:
         1. Focus: Stay on the target grammar point. Do not move to the next until she demonstrates mastery.
-        2. Correction Style: After she responds, provide a "Deep Correction" with clear headers and spacing:
+        2. STRICT RULE: NEVER provide furigana, romaji, or reading aids (e.g. no hiragana in parentheses next to kanji). Pauline uses Yomitan and knows how to read.
+        3. Correction Style: After she responds, provide a "Deep Correction" with clear headers and spacing. Format exactly like this:
            
            **🛠️ Line-by-Line Breakdown**
-           Correct spelling, particles (を vs が), and verb conjugations. Explain errors in English.
+           
+           - **[Original Clause 1]**
+           - **Correction:** Explain if a particle is wrong and why, conjugation if it's wrong and how to fix it, and how to say it more naturally. Suggest additional grammar if it makes it sound better. Break down PER CLAUSE, not full sentences. Give detailed explanations.
+           
+           - **[Original Clause 2]**
+           - **Correction:** [Detailed explanation without furigana...]
            
            **🌟 Natural Version**
-           Provide a fluent, "polished" version of her full response in Japanese.
+           「[Full Natural Japanese Sentence]」
            
            **🚀 Let's Continue our Practice**
            Keep the story going using the SAME grammar point. Update the scene based on her actions.
            
-        3. Formatting for the 'Let's Continue' step:
+        4. Formatting for the 'Let's Continue' step:
            Use clear headers and double newlines for spacing.
            
            📖 **The Scenario**
@@ -386,12 +392,12 @@ const resolveSystemInstruction = (contact: PersonaProfile, drillPoint?: ParsedGr
            [Instruction on what to see in her head, e.g. 'Visualize the heavy door...']
            
            🔑 **Keywords**
-           - [Word] ([Reading] - [Meaning])
-           - [Word] ([Reading] - [Meaning])
+           - [Word] - [Meaning]
+           - [Word] - [Meaning]
            
            **Task:** [Short instruction requiring her to use "${drillPoint?.point || 'target grammar'}"]
            
-        4. Tone: Peer-like, encouraging, and concise. Avoid dense walls of text. Be very strict on grammar mistakes but encouraging.
+        5. Tone: Peer-like, encouraging, and concise. Avoid dense walls of text. Be very strict on grammar mistakes but encouraging.
       `;
     } else {
       behaviorInstruction = `
@@ -607,11 +613,12 @@ const generateDrillScenario = async (point: ParsedGrammarPoint, mode: 'creative'
        [1 sentence telling her what to visualize in her head to connect the action to the Japanese.]
 
        🔑 **Keywords**
-       - [Keyword in Japanese] ([Reading in Hiragana/Romaji] - [English])
-       - [Keyword in Japanese] ([Reading in Hiragana/Romaji] - [English])
+       - [Keyword in Japanese] - [English]
+       - [Keyword in Japanese] - [English]
 
        **Task:** [A short instruction forcing her to respond using "${point.point}". Ex: "Describe the room and use ${point.point} to explain why you can't leave."]
-    4. You MUST output a strictly valid JSON object matching the required schema. Ensure the markdown for the initialMessage is properly escaped inside the JSON string field.
+    4. STRICT RULE: NEVER output furigana, romaji, or reading aids (e.g. no hiragana in parentheses next to kanji). Pauline knows how to read.
+    5. You MUST output a strictly valid JSON object matching the required schema. Ensure the markdown for the initialMessage is properly escaped inside the JSON string field.
   `;
 
   const realisticPrompt = `
@@ -1459,16 +1466,20 @@ const MessengerTab: React.FC = () => {
                          {analyzingMessageId === msg.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
                        </button>
                      }
-                     <div className={`px-5 py-4 text-[15px] leading-relaxed shadow-sm font-sans relative ${msg.sender === 'user' ? 'bg-rose-400 text-white rounded-[24px] rounded-br-[4px]' : 'bg-white text-gray-700 border border-rose-100 rounded-[24px] rounded-bl-[4px]'}`}>
+                     <div 
+                       className={`px-5 py-4 text-[15px] shadow-sm relative ${msg.sender === 'user' ? 'bg-rose-400 text-white rounded-[24px] rounded-br-[4px]' : 'bg-white text-gray-700 border border-rose-100 rounded-[24px] rounded-bl-[4px]'}`}
+                       style={{ fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif", letterSpacing: "0.01em" }}
+                     >
                          <ReactMarkdown
                            components={{
-                             strong: ({node, ...props}) => <strong className="font-bold text-[1.05em]" {...props} />,
-                             p: ({node, ...props}) => <p className="mb-4 last:mb-0" {...props} />,
-                             ul: ({node, ...props}) => <ul className="list-none mb-4 last:mb-0 space-y-2" {...props} />,
-                             li: ({node, ...props}) => <li className="flex items-start gap-2 relative before:content-[''] before:w-1.5 before:h-1.5 before:rounded-full before:bg-rose-300 before:absolute before:top-2 before:left-0 pl-4" {...props} />,
-                             h1: ({node, ...props}) => <h1 className="text-xl font-bold mb-3 text-rose-500" {...props} />,
-                             h2: ({node, ...props}) => <h2 className="text-lg font-bold mb-3 text-rose-500" {...props} />,
-                             h3: ({node, ...props}) => <h3 className="text-base font-bold mb-3 text-rose-500" {...props} />
+                             strong: ({node, ...props}) => <strong className="font-semibold text-[1.05em]" {...props} />,
+                             p: ({node, ...props}) => <p className="mb-4 last:mb-0 leading-[1.6]" {...props} />,
+                             ul: ({node, ...props}) => <ul className="list-disc pl-5 mb-4 last:mb-0 space-y-2 leading-[1.6]" {...props} />,
+                             ol: ({node, ...props}) => <ol className="list-decimal pl-5 mb-4 last:mb-0 space-y-2 leading-[1.6]" {...props} />,
+                             li: ({node, ...props}) => <li className="mb-1" {...props} />,
+                             h1: ({node, ...props}) => <h1 className="text-xl font-bold mb-3 text-rose-500 leading-[1.5]" {...props} />,
+                             h2: ({node, ...props}) => <h2 className="text-lg font-bold mb-3 text-rose-500 leading-[1.5]" {...props} />,
+                             h3: ({node, ...props}) => <h3 className="text-base font-bold mb-3 text-rose-500 leading-[1.5]" {...props} />
                            }}
                          >
                            {msg.text}
