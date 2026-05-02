@@ -404,9 +404,12 @@ const resolveSystemInstruction = (contact: PersonaProfile, drillPoint?: ParsedGr
         ${contact.systemInstruction}
         
         --- MODE: REALISTIC JAPANESE DRILL ---
-        1. CRITICAL: If the student makes a mistake, EXPLAIN IT IN ENGLISH first, then provide the JAPANESE correction.
-        2. If the student is correct, continue the roleplay NATURALLY in JAPANESE.
-        3. Maintain a realistic persona interaction (Standard conversation).
+        Target Grammar: "${drillPoint?.point || 'target grammar'}"
+        
+        1. Roleplay strictly in JAPANESE ONLY. Never break character. Never use English.
+        2. DO NOT correct the user's grammar. Act exclusively as the Persona in the scenario.
+        3. Gently guide the conversation so the user is naturally prompted to use the Target Grammar in their replies.
+        4. Do NOT explicitly mention the grammar point name or act like a teacher. Just converse naturally.
       `;
     }
   } else if (isMission) {
@@ -595,8 +598,9 @@ const generateDrillScenario = async (point: ParsedGrammarPoint, mode: 'creative'
     Target Grammar: "${point.point}"
     Meaning: "${point.meaning}"
 
-    Create a "Grounded Fantasy" scenario. Use a creative hook (e.g., a magic kitchen, a futuristic train), but the tasks must be grounded in everyday actions (describing a room, ordering food, explaining a problem). 
-    Help Pauline visualize real-world actions rather than abstract magic.
+    Create an imaginative and highly varied scenario tailored specifically to the meaning of the grammar point. 
+    The setting can be anything (sci-fi, mystery, slice-of-life, historical, cyberpunk, mundane, etc.) as long as the situation perfectly forces the user to use the grammar point.
+    Avoid overusing standard fantasy tropes like "magic", "alchemy", "mana", or "library" unless it truly fits. Make the hook completely unique every time, but keep the required physical tasks grounded and easy to visualize.
     
     Requirements:
     1. Define a Persona (Name, Role).
@@ -607,7 +611,7 @@ const generateDrillScenario = async (point: ParsedGrammarPoint, mode: 'creative'
        **[${point.point} - ${point.meaning}]**
 
        📖 **The Scenario**
-       [2-3 sentences in English setting the scene. It should be an immersive grounded fantasy.]
+       [2-3 sentences in English setting the scene. It should be an immersive grounded scenario.]
 
        🎯 **Visualization Goal**
        [1 sentence telling her what to visualize in her head to connect the action to the Japanese.]
@@ -622,15 +626,15 @@ const generateDrillScenario = async (point: ParsedGrammarPoint, mode: 'creative'
   `;
 
   const realisticPrompt = `
-    You are an expert Japanese teacher. The student's name is Pauline.
+    You are an AI generating a realistic Japanese roleplay scenario for a student named Pauline.
     Target Grammar: "${point.point}"
     Meaning: "${point.meaning}"
 
     Create a realistic, everyday Japanese roleplay scenario.
     Requirements:
-    1. Define a Persona (Clerk, Friend, Teacher).
+    1. Define a Persona (e.g., Clerk, Friend, Teacher, Coworker).
     2. Define a Context (Standard daily interaction).
-    3. Initial Message: Start naturally in JAPANESE.
+    3. Initial Message: Start naturally in JAPANESE ONLY. The message should naturally prompt her to use the target grammar in her reply.
     4. Output strictly valid JSON.
   `;
 

@@ -1,7 +1,8 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PanelLeft, Loader2, Sparkles } from 'lucide-react';
+import { useProgressStore } from './store/progressStore';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
 import QuestMap from './components/QuestMap';
@@ -24,7 +25,34 @@ const App: React.FC = () => {
   const [isSidebarVisible, setIsSidebarVisible] = useState(true);
   
   const { playlist, activeIndex, isAnalyzing } = useImmersionStore();
-  
+  const grammarPracticeCounts = useProgressStore(state => state.grammarPracticeCounts);
+
+  useEffect(() => {
+    // Ensure the specific grammar points have at least 1 practice count (green circle)
+    const requiredPoints = [
+      'g1-1-1', 'g1-1-2', 'g1-1-3',
+      'g1-2-1', 'g1-2-2', 'g1-2-3', 'g1-2-4', 'g1-2-5', 'g1-2-6', 'g1-2-7',
+      'g1-3-1', 'g1-3-2', 'g1-3-3', 'g1-3-4', 'g1-3-5', 'g1-3-6', 'g1-3-7', 'g1-3-8', 'g1-3-9',
+      'g1-4-1'
+    ];
+
+    let missing = false;
+    for (const pt of requiredPoints) {
+      if (!grammarPracticeCounts[pt]) {
+        missing = true;
+        break;
+      }
+    }
+
+    if (missing) {
+      requiredPoints.forEach(pt => {
+        if (!useProgressStore.getState().grammarPracticeCounts[pt]) {
+          useProgressStore.getState().incrementGrammarPractice(pt);
+        }
+      });
+    }
+  }, [grammarPracticeCounts]);
+
   const toggleSidebar = () => setIsSidebarVisible(!isSidebarVisible);
 
   return (
