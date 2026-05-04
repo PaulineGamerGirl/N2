@@ -91,6 +91,91 @@ const VOICE_MAP: Record<string, string> = {
   'grammar_drill': 'Charon', 
 };
 
+const CHARACTER_AVATARS: Record<string, string> = {
+  // Existing AI/Missions
+  'mission control': 'https://api.dicebear.com/9.x/avataaars/svg?seed=MissionBot&backgroundColor=e5e7eb&clothing=blazerAndShirt&clothingColor=000000',
+  'grammar dojo': 'https://api.dicebear.com/9.x/avataaars/svg?seed=SenseiDojo&backgroundColor=fecaca&clothing=shirtVNeck&clothingColor=5c4d49',
+  
+  // The Last of Us
+  'joel': 'https://upload.wikimedia.org/wikipedia/en/thumb/9/94/Joel_in_The_Last_of_Us.png/250px-Joel_in_The_Last_of_Us.png',
+  'ellie': 'https://upload.wikimedia.org/wikipedia/en/9/96/Ellie_in_The_Last_of_Us_Part_II.png',
+
+  // Final Fantasy 7
+  'cloud strife': 'https://upload.wikimedia.org/wikipedia/en/9/9e/Cloud_Strife.png',
+  'cloud': 'https://upload.wikimedia.org/wikipedia/en/9/9e/Cloud_Strife.png',
+  'tifa lockhart': 'https://upload.wikimedia.org/wikipedia/en/6/61/Tifa_Lockhart_art.png',
+  'tifa': 'https://upload.wikimedia.org/wikipedia/en/6/61/Tifa_Lockhart_art.png',
+  'sephiroth': 'https://upload.wikimedia.org/wikipedia/en/thumb/c/c4/Sephiroth.png/250px-Sephiroth.png',
+
+  // Final Fantasy 15
+  'noctis': 'https://myanimelist.net/images/characters/3/538884.jpg',
+
+  // Demon Slayer
+  'tanjiro kamado': 'https://myanimelist.net/images/characters/6/386735.jpg',
+  'tanjiro': 'https://myanimelist.net/images/characters/6/386735.jpg',
+  'nezuko kamado': 'https://myanimelist.net/images/characters/2/378254.jpg',
+  'nezuko': 'https://myanimelist.net/images/characters/2/378254.jpg',
+
+  // Elden Ring
+  'the tarnished': 'https://myanimelist.net/images/characters/10/629727.jpg',
+  'tarnished': 'https://myanimelist.net/images/characters/10/629727.jpg',
+  'white mask varre': 'https://myanimelist.net/images/characters/10/487059.jpg',
+  'varre': 'https://myanimelist.net/images/characters/10/487059.jpg',
+  'ranni the witch': 'https://myanimelist.net/images/characters/7/488645.jpg',
+  'ranni': 'https://myanimelist.net/images/characters/7/488645.jpg',
+  'malenia': 'https://myanimelist.net/images/characters/6/487054.jpg',
+
+  // Chainsaw Man
+  'denji': 'https://myanimelist.net/images/characters/3/492407.jpg',
+  'aki hayakawa': 'https://myanimelist.net/images/characters/13/395003.jpg',
+  'aki': 'https://myanimelist.net/images/characters/13/395003.jpg',
+  'makima': 'https://myanimelist.net/images/characters/4/489561.jpg',
+
+  // Jujutsu Kaisen
+  'yuji itadori': 'https://myanimelist.net/images/characters/6/467646.jpg',
+  'yuji': 'https://myanimelist.net/images/characters/6/467646.jpg',
+  'itadori': 'https://myanimelist.net/images/characters/6/467646.jpg',
+  'satoru gojo': 'https://myanimelist.net/images/characters/15/422168.jpg',
+  'satoru': 'https://myanimelist.net/images/characters/15/422168.jpg',
+  'gojo': 'https://myanimelist.net/images/characters/15/422168.jpg',
+  'kirara hoshi': 'https://myanimelist.net/images/characters/11/628590.jpg',
+  'kirara': 'https://myanimelist.net/images/characters/11/628590.jpg',
+  'kinji hakari': 'https://myanimelist.net/images/characters/8/621869.jpg',
+  'hakari': 'https://myanimelist.net/images/characters/8/621869.jpg',
+
+  // Naruto
+  'naruto uzumaki': 'https://myanimelist.net/images/characters/2/284121.jpg',
+  'naruto': 'https://myanimelist.net/images/characters/2/284121.jpg',
+  'sasuke uchiha': 'https://myanimelist.net/images/characters/9/131317.jpg',
+  'sasuke': 'https://myanimelist.net/images/characters/9/131317.jpg',
+  'kakashi hatake': 'https://myanimelist.net/images/characters/7/284129.jpg',
+  'kakashi': 'https://myanimelist.net/images/characters/7/284129.jpg',
+
+  // Death Note
+  'light yagami': 'https://myanimelist.net/images/characters/6/63870.jpg',
+  'light': 'https://myanimelist.net/images/characters/6/63870.jpg',
+  'l lawliet': 'https://myanimelist.net/images/characters/7/523013.jpg',
+  'lawliet': 'https://myanimelist.net/images/characters/7/523013.jpg',
+  'ryuk': 'https://myanimelist.net/images/characters/10/59125.jpg'
+};
+
+const getCharacterAvatar = (name: string) => {
+  const normalized = name.toLowerCase();
+  
+  // Exact match first
+  if (CHARACTER_AVATARS[normalized]) return CHARACTER_AVATARS[normalized];
+  
+  // Includes match (e.g. if the AI returns "The Great Satoru Gojo")
+  for (const [key, url] of Object.entries(CHARACTER_AVATARS)) {
+    if (normalized.includes(key)) {
+         return url;
+    }
+  }
+  // Sanitize name for ui-avatars to ensure it generates good initials
+  const cleanName = name.replace(/[^a-zA-Z0-9 ]/g, '').trim() || 'Hero';
+  return `https://ui-avatars.com/api/?name=${encodeURIComponent(cleanName)}&background=random&color=fff&size=200&bold=true`;
+};
+
 // --- MODULE MAPPING ---
 const MODULE_TITLES: Record<string, string> = {
   'genki1': 'Genki I (N5)',
@@ -593,19 +678,21 @@ const generateDrillScenario = async (point: ParsedGrammarPoint, mode: 'creative'
 
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-  const universes = [
-    "The Last of Us",
-    "Final Fantasy 7",
-    "Final Fantasy 15",
-    "Final Fantasy 16",
-    "Elden Ring",
-    "Clair Obscure",
-    "Chainsaw Man",
-    "Jujutsu Kaisen",
-    "Naruto",
-    "Death Note"
+  const universeData = [
+    { universe: "The Last of Us", characters: ["Joel", "Ellie"] },
+    { universe: "Final Fantasy 7", characters: ["Cloud Strife", "Tifa Lockhart", "Sephiroth"] },
+    { universe: "Final Fantasy 15", characters: ["Noctis"] },
+    { universe: "Demon Slayer", characters: ["Tanjiro Kamado", "Nezuko Kamado"] },
+    { universe: "Elden Ring", characters: ["The Tarnished", "White Mask Varre", "Ranni the Witch", "Malenia"] },
+    { universe: "Chainsaw Man", characters: ["Denji", "Aki Hayakawa", "Makima"] },
+    { universe: "Jujutsu Kaisen", characters: ["Yuji Itadori", "Satoru Gojo", "Kirara Hoshi", "Kinji Hakari"] },
+    { universe: "Naruto", characters: ["Naruto Uzumaki", "Sasuke Uchiha", "Kakashi Hatake"] },
+    { universe: "Death Note", characters: ["Light Yagami", "L Lawliet", "Ryuk"] }
   ];
-  const selectedUniverse = universes[Math.floor(Math.random() * universes.length)];
+
+  const randomSelection = universeData[Math.floor(Math.random() * universeData.length)];
+  const selectedUniverse = randomSelection.universe;
+  const selectedCharacter = randomSelection.characters[Math.floor(Math.random() * randomSelection.characters.length)];
 
   const creativePrompt = `
     You are an expert Japanese teacher. The student's name is Pauline.
@@ -613,12 +700,13 @@ const generateDrillScenario = async (point: ParsedGrammarPoint, mode: 'creative'
     Meaning: "${point.meaning}"
 
     Create an immersive scenario set in the universe of: **${selectedUniverse}**.
-    Roleplay as a random MAIN CHARACTER from this specific universe (with their distinct personality and tone).
-    The scenario must perfectly force the user to use the grammar point, but keep the required physical tasks grounded, easy to visualize, and plausible for Pauline to do in that world's context.
+    Roleplay SPECIFICALLY as **${selectedCharacter}** (with their distinct personality and tone).
+    CRITICAL: Avoid boring chores or static observations. Put Pauline right in the middle of a dynamic, lore-accurate action (e.g. running from danger, sneaking past guards, casting a vital spell, or a tense emotional confrontation).
+    The scenario must perfectly force the user to use the grammar point, while keeping the required physical tasks highly visual and plausible for Pauline to do in that world's context.
     
     Requirements:
-    1. Define a Persona (Name of the character, Role in ${selectedUniverse}).
-    2. Define a Context (A concrete situation with clear visual imagery set in ${selectedUniverse}).
+    1. Define a Persona (Name: ${selectedCharacter}, Role in ${selectedUniverse}).
+    2. Define a Context (A tense or dynamic concrete situation with clear visual imagery set in ${selectedUniverse}).
     3. Initial Message:
        You MUST use this EXACT markdown format for the initial message:
 
@@ -636,7 +724,7 @@ const generateDrillScenario = async (point: ParsedGrammarPoint, mode: 'creative'
 
        **Task:** [A short instruction forcing her to respond using "${point.point}". Ex: "Describe the room and use ${point.point} to explain why you can't leave."]
     4. STRICT RULE: NEVER output furigana, romaji, or reading aids (e.g. no hiragana in parentheses next to kanji). Pauline knows how to read.
-    5. You MUST output a strictly valid JSON object matching the required schema. Ensure the markdown for the initialMessage is properly escaped inside the JSON string field.
+    5. You MUST output a strictly valid JSON object matching the required schema. Ensure the markdown for the initialMessage is properly escaped inside the JSON string field. Set the 'systemInstruction' field to a short prompt reminding yourself how to roleplay this specific character moving forward.
   `;
 
   const realisticPrompt = `
@@ -645,13 +733,13 @@ const generateDrillScenario = async (point: ParsedGrammarPoint, mode: 'creative'
     Meaning: "${point.meaning}"
 
     Create a realistic, conversational Japanese roleplay scenario set in the universe of: **${selectedUniverse}**.
-    Roleplay as a random MAIN CHARACTER from this specific universe. The situation should be lore-based (e.g., getting caught by a zombie, preparing for a mission), but the interaction should feel like a natural, realistic Japanese conversation so Pauline can practice practical speaking skills.
+    Roleplay SPECIFICALLY as **${selectedCharacter}**. The situation should be lore-based (e.g., getting caught by a zombie, preparing for a mission), but the interaction should feel like a natural, realistic Japanese conversation so Pauline can practice practical speaking skills.
     
     Requirements:
-    1. Define a Persona (Name of the character, Role in ${selectedUniverse}).
+    1. Define a Persona (Name: ${selectedCharacter}, Role in ${selectedUniverse}).
     2. Define a Context (Lore-based, practical situation).
     3. Initial Message: Start naturally in JAPANESE ONLY in the distinct voice of the character. The message should naturally prompt her to use the target grammar in her reply.
-    4. Output strictly valid JSON.
+    4. Output strictly valid JSON. Set the 'systemInstruction' field to a short prompt reminding yourself how to roleplay this specific character moving forward.
   `;
 
   const finalPrompt = mode === 'creative' ? creativePrompt : realisticPrompt;
@@ -676,7 +764,7 @@ const generateDrillScenario = async (point: ParsedGrammarPoint, mode: 'creative'
             required: ["characterName", "roleDescription", "context", "systemInstruction", "initialMessage"]
           }
         }
-      }, 'pro');
+      }, 'flash');
 
       if (response.text) {
         const cleanText = response.text.replace(/```json/gi, "").replace(/```/g, "").trim();
@@ -1059,7 +1147,7 @@ const MessengerTab: React.FC = () => {
                 role: 'Drill Partner',
                 status: `Drill: ${point.point}`, 
                 systemInstruction: scenario.systemInstruction,
-                avatar: `https://api.dicebear.com/9.x/avataaars/svg?seed=${scenario.characterName}&backgroundColor=c0aede` 
+                avatar: getCharacterAvatar(scenario.characterName)
             }
         }));
         setMessages(prev => ({
