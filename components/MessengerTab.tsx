@@ -386,7 +386,7 @@ const resolveSystemInstruction = (contact: PersonaProfile, drillPoint?: ParsedGr
            Use clear headers and double newlines for spacing.
            
            📖 **The Scenario**
-           [2-3 sentences in English updating the scene based on her choice. Use a fantasy hook but grounded tasks.]
+           [2-3 sentences in English updating the scene based on her choice. Keep it consistent with the specific universe and character established in the initial message. Do not introduce generic fantasy or magic tropes unless it fits the specific world.]
            
            🎯 **Visualization Goal**
            [Instruction on what to see in her head, e.g. 'Visualize the heavy door...']
@@ -593,18 +593,32 @@ const generateDrillScenario = async (point: ParsedGrammarPoint, mode: 'creative'
 
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
+  const universes = [
+    "The Last of Us",
+    "Final Fantasy 7",
+    "Final Fantasy 15",
+    "Final Fantasy 16",
+    "Elden Ring",
+    "Clair Obscure",
+    "Chainsaw Man",
+    "Jujutsu Kaisen",
+    "Naruto",
+    "Death Note"
+  ];
+  const selectedUniverse = universes[Math.floor(Math.random() * universes.length)];
+
   const creativePrompt = `
     You are an expert Japanese teacher. The student's name is Pauline.
     Target Grammar: "${point.point}"
     Meaning: "${point.meaning}"
 
-    Create an imaginative and highly varied scenario tailored specifically to the meaning of the grammar point. 
-    The setting can be anything (sci-fi, mystery, slice-of-life, historical, cyberpunk, mundane, etc.) as long as the situation perfectly forces the user to use the grammar point.
-    Avoid overusing standard fantasy tropes like "magic", "alchemy", "mana", or "library" unless it truly fits. Make the hook completely unique every time, but keep the required physical tasks grounded and easy to visualize.
+    Create an immersive scenario set in the universe of: **${selectedUniverse}**.
+    Roleplay as a random MAIN CHARACTER from this specific universe (with their distinct personality and tone).
+    The scenario must perfectly force the user to use the grammar point, but keep the required physical tasks grounded, easy to visualize, and plausible for Pauline to do in that world's context.
     
     Requirements:
-    1. Define a Persona (Name, Role).
-    2. Define a Context (A concrete situation with clear visual imagery).
+    1. Define a Persona (Name of the character, Role in ${selectedUniverse}).
+    2. Define a Context (A concrete situation with clear visual imagery set in ${selectedUniverse}).
     3. Initial Message:
        You MUST use this EXACT markdown format for the initial message:
 
@@ -630,11 +644,13 @@ const generateDrillScenario = async (point: ParsedGrammarPoint, mode: 'creative'
     Target Grammar: "${point.point}"
     Meaning: "${point.meaning}"
 
-    Create a realistic, everyday Japanese roleplay scenario.
+    Create a realistic, conversational Japanese roleplay scenario set in the universe of: **${selectedUniverse}**.
+    Roleplay as a random MAIN CHARACTER from this specific universe. The situation should be lore-based (e.g., getting caught by a zombie, preparing for a mission), but the interaction should feel like a natural, realistic Japanese conversation so Pauline can practice practical speaking skills.
+    
     Requirements:
-    1. Define a Persona (e.g., Clerk, Friend, Teacher, Coworker).
-    2. Define a Context (Standard daily interaction).
-    3. Initial Message: Start naturally in JAPANESE ONLY. The message should naturally prompt her to use the target grammar in her reply.
+    1. Define a Persona (Name of the character, Role in ${selectedUniverse}).
+    2. Define a Context (Lore-based, practical situation).
+    3. Initial Message: Start naturally in JAPANESE ONLY in the distinct voice of the character. The message should naturally prompt her to use the target grammar in her reply.
     4. Output strictly valid JSON.
   `;
 
