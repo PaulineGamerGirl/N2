@@ -199,78 +199,61 @@ export const HARDWIRED_GRAMMAR: Record<string, ParsedGrammarPoint[]> = {
 
   // --- QUARTET 1 (N3) ---
   'quartet1_1': [
-    { id: 'q1-1-1', point: '〜といえば', meaning: 'Speaking of... / N reminds me...', sentences: '' },
-    { id: 'q1-1-2', point: '〜というのは...ことだ', meaning: 'Means... / refers to...', sentences: '' },
-    { id: 'q1-1-3', point: '〜上で', meaning: 'Upon; in terms of; following', sentences: '' },
-    { id: 'q1-1-4', point: '〜上で(は)', meaning: 'When it comes to... / From the standpoint of...', sentences: '' },
-    { id: 'q1-1-5', point: '〜てからでないと', meaning: 'Unless...happens, [negative] / Only after...', sentences: '' },
-    { id: 'q1-1-6', point: '〜ず(に)', meaning: 'Without doing - formal form of 〜ないで', sentences: '' },
-    { id: 'q1-1-7', point: '〜〜気をつける', meaning: 'To be careful about...', sentences: '' },
-    { id: 'q1-1-8', point: '〜のように言う', meaning: 'To tell someone to...', sentences: '' },
-    { id: 'q1-1-9', point: '〜まるで〜よう', meaning: 'Just like / As if', sentences: '' },
-    { id: 'q1-1-10', point: '〜気に入る', meaning: 'To be pleased with / To like', sentences: '' },
-    { id: 'q1-1-11', point: '〜気がつく', meaning: 'To notice', sentences: '' }
+    { id: 'q1-1-1', point: '～といえば', meaning: 'Speaking of...', sentences: '' },
+    { id: 'q1-1-2', point: '～なら', meaning: 'If/Provided that...', sentences: '' },
+    { id: 'q1-1-3', point: '～とおり（に）／Nどおり（に）', meaning: 'Just as... / Following...', sentences: '' },
+    { id: 'q1-1-4', point: '～らしい', meaning: 'Seems like... / Typical of...', sentences: '' },
+    { id: 'q1-1-5', point: '～ために／～ためのN', meaning: 'For the purpose of... / Due to...', sentences: '' },
+    { id: 'q1-1-6', point: '～がきっかけで', meaning: 'With... as a start/impetus', sentences: '' },
+    { id: 'q1-1-7', point: '～ようになる', meaning: 'To reach the point where / To come to be that...', sentences: '' },
+    { id: 'q1-1-8', point: '～ようにする', meaning: 'To make an effort to...', sentences: '' },
+    { id: 'q1-1-9', point: 'Nによると', meaning: 'According to N', sentences: '' }
   ],
   'quartet1_2': [
-    { id: 'q1-2-1', point: '〜ておく', meaning: 'To do something in advance', sentences: '' },
-    { id: 'q1-2-2', point: '〜以来', meaning: 'Ever since', sentences: '' },
-    { id: 'q1-2-3', point: '〜さえ〜ば', meaning: 'If only... then [condition]', sentences: '' },
-    { id: 'q1-2-4', point: '〜としても', meaning: 'Even if', sentences: '' },
-    { id: 'q1-2-5', point: '〜気味', meaning: 'A bit of; a slight tendency to', sentences: '' },
-    { id: 'q1-2-6', point: '〜というわけです', meaning: 'Which means / That is why', sentences: '' },
-    { id: 'q1-2-7', point: '〜〜というものだ', meaning: 'It is certainly that... / It\'s called...', sentences: '' },
-    { id: 'q1-2-8', point: '〜〜まま', meaning: 'Still in that state / As is', sentences: '' },
-    { id: 'q1-2-9', point: '〜〜ふりをする', meaning: 'To pretend to', sentences: '' },
-    { id: 'q1-2-10', point: '〜わさわざ', meaning: 'To go out of one’s way', sentences: '' },
-    { id: 'q1-2-11', point: '〜からといって', meaning: 'Just because...', sentences: '' }
+    { id: 'q1-2-1', point: 'Verbて-form formal expressions', meaning: 'Formal alternatives for te-form (e.g. i-stem)', sentences: '' },
+    { id: 'q1-2-2', point: '～てくる／～ていく', meaning: 'Actions/states moving toward/away from the present', sentences: '' },
+    { id: 'q1-2-3', point: 'しか～ない', meaning: 'Nothing but / Only', sentences: '' },
+    { id: 'q1-2-4', point: '～ことにする', meaning: 'To decide on...', sentences: '' },
+    { id: 'q1-2-5', point: 'Expressions using 気', meaning: 'Idioms like 気がする, 気にする, etc.', sentences: '' },
+    { id: 'q1-2-6', point: 'Expressions using おかげ', meaning: 'Thanks to...', sentences: '' }
   ],
   'quartet1_3': [
-    { id: 'q1-3-1', point: '〜に対して', meaning: 'In contrast to / Towards [object]', sentences: '' },
-    { id: 'q1-3-2', point: '〜によって', meaning: 'Depending on / By [creator]', sentences: '' },
-    { id: 'q1-3-3', point: '〜という点', meaning: 'In the point that...', sentences: '' },
-    { id: 'q1-3-4', point: '〜のに対し', meaning: 'Compared to / In contrast to', sentences: '' },
-    { id: 'q1-3-5', point: '〜ほど〜ない', meaning: 'Not as [A] as [B]', sentences: '' },
-    { id: 'q1-3-6', point: '〜何と言っても', meaning: 'Undeniably / Needless to say', sentences: '' },
-    { id: 'q1-3-7', point: '〜〜さえ', meaning: 'Even', sentences: '' },
-    { id: 'q1-3-8', point: '〜はずだ', meaning: 'Expected to be / Should be', sentences: '' },
-    { id: 'q1-3-9', point: '〜ないわけではない', meaning: 'It’s not that I don’t... / It\'s not impossible', sentences: '' },
-    { id: 'q1-3-10', point: '〜たとえ〜ても', meaning: 'Even if / No matter how', sentences: '' }
+    { id: 'q1-3-1', point: '～うちに', meaning: 'While... / Before [condition] changes', sentences: '' },
+    { id: 'q1-3-2', point: '何と言っても', meaning: 'Undeniably / After all is said and done', sentences: '' },
+    { id: 'q1-3-3', point: 'Nにとって', meaning: 'For / To [someone/something]', sentences: '' },
+    { id: 'q1-3-4', point: 'Nとして', meaning: 'As / In the capacity of', sentences: '' },
+    { id: 'q1-3-5', point: '～ため（に）', meaning: 'Because of / For the sake of', sentences: '' },
+    { id: 'q1-3-6', point: 'Nによって', meaning: 'Depends on / By means of / Created by', sentences: '' },
+    { id: 'q1-3-7', point: '～べきだ／べきではない', meaning: 'Should / Must (moral obligation)', sentences: '' }
   ],
   'quartet1_4': [
-    { id: 'q1-4-1', point: '〜たびに', meaning: 'Every time', sentences: '' },
-    { id: 'q1-4-2', point: '〜からすると', meaning: 'Judging from / By the look of', sentences: '' },
-    { id: 'q1-4-3', point: '〜ように言う', meaning: 'Used to express a command/request through reported speech', sentences: '' },
-    { id: 'q1-4-4', point: '〜ことになっている', meaning: 'It is planned/arranged that...', sentences: '' },
-    { id: 'q1-4-5', point: '〜ないで済む', meaning: 'To get by without doing', sentences: '' },
-    { id: 'q1-4-6', point: '〜だけでなく / だけでなく〜も', meaning: 'Not only... but also', sentences: '' },
-    { id: 'q1-4-7', point: '〜ばかり', meaning: 'Nothing but... / Just...', sentences: '' },
-    { id: 'q1-4-8', point: '〜わけだ', meaning: 'No wonder / That\'s why', sentences: '' },
-    { id: 'q1-4-9', point: '〜という形', meaning: 'In the form of...', sentences: '' },
-    { id: 'q1-4-10', point: '〜という点', meaning: 'With regards to... / On the point of...', sentences: '' }
+    { id: 'q1-4-1', point: '～以来', meaning: 'Ever since', sentences: '' },
+    { id: 'q1-4-2', point: '～ような気がする', meaning: 'I have a feeling that...', sentences: '' },
+    { id: 'q1-4-3', point: 'せっかく', meaning: 'With much trouble / Since we are here anyway', sentences: '' },
+    { id: 'q1-4-4', point: '～さえ', meaning: 'Even...', sentences: '' },
+    { id: 'q1-4-5', point: '～たばかり', meaning: 'Just finished doing...', sentences: '' },
+    { id: 'q1-4-6', point: '～ないで済む／～ずに済む', meaning: 'To get by without doing', sentences: '' },
+    { id: 'q1-4-7', point: '（Xは）Yほど～ない', meaning: 'X is not as ... as Y', sentences: '' }
   ],
   'quartet1_5': [
-    { id: 'q1-5-1', point: '〜だけあって', meaning: 'Precisely because... / As expected from...', sentences: '' },
-    { id: 'q1-5-2', point: '〜〜〜とする', meaning: 'To try to / To assume', sentences: '' },
-    { id: 'q1-5-3', point: '〜ず(に)済む', meaning: 'To manage to avoid doing... / Get by without', sentences: '' },
-    { id: 'q1-5-4', point: '〜こと', meaning: 'Formal command/instruction', sentences: '' },
-    { id: 'q1-5-5', point: '〜〜に限る', meaning: 'Is best / Only applies to', sentences: '' },
-    { id: 'q1-5-6', point: '〜（よ）うではないか', meaning: 'Let\'s... [formal/encouraging]', sentences: '' },
-    { id: 'q1-5-7', point: '〜〜という理由で', meaning: 'For the reason that...', sentences: '' },
-    { id: 'q1-5-8', point: '〜など / なんか', meaning: 'Things like... / Or something', sentences: '' },
-    { id: 'q1-5-9', point: '〜を通して', meaning: 'Through... / Via...', sentences: '' },
-    { id: 'q1-5-10', point: '〜〜〜気がある', meaning: 'To have a mind to / Be interested in', sentences: '' }
+    { id: 'q1-5-1', point: 'Question word + ～ても', meaning: 'No matter what/who/where...', sentences: '' },
+    { id: 'q1-5-2', point: '～たび（に）', meaning: 'Every time...', sentences: '' },
+    { id: 'q1-5-3', point: '～はずだ', meaning: 'Expected to be / Bound to be', sentences: '' },
+    { id: 'q1-5-4', point: '～ておく／～ないでおく', meaning: 'Do/Don\'t do in advance', sentences: '' },
+    { id: 'q1-5-5', point: 'まず／次に／それから／最後に', meaning: 'Sequencing words', sentences: '' },
+    { id: 'q1-5-6', point: '（もし）～ても', meaning: 'Even if...', sentences: '' },
+    { id: 'q1-5-7', point: '～ように', meaning: 'In order to... / So that...', sentences: '' },
+    { id: 'q1-5-8', point: 'Nにする', meaning: 'To decide on N', sentences: '' },
+    { id: 'q1-5-9', point: '～だけあって', meaning: 'Being the case... / As expected from...', sentences: '' }
   ],
   'quartet1_6': [
-    { id: 'q1-6-1', point: '〜〜ては', meaning: 'If one does / Every time', sentences: '' },
-    { id: 'q1-6-2', point: '〜〜〜（よ）うとする', meaning: 'About to... / Trying to', sentences: '' },
-    { id: 'q1-6-3', point: '〜〜〜というより', meaning: 'Rather than', sentences: '' },
-    { id: 'q1-6-4', point: '〜〜〜ず(に)はいられない', meaning: 'Cannot help but... / Cannot avoid', sentences: '' },
-    { id: 'q1-6-5', point: '〜〜〜きれない', meaning: 'Cannot finish... / Cannot completely...', sentences: '' },
-    { id: 'q1-6-6', point: '〜〜〜をきっかけに', meaning: 'With... as a starting point / Since', sentences: '' },
-    { id: 'q1-6-7', point: '〜〜〜を伝える', meaning: 'To report / To convey', sentences: '' },
-    { id: 'q1-6-8', point: '〜〜〜（よ）うものなら', meaning: 'If one were to... [dire consequences]', sentences: '' },
-    { id: 'q1-6-9', point: '〜〜〜ものだ', meaning: 'Should... / Often...', sentences: '' },
-    { id: 'q1-6-10', point: '〜〜〜としても', meaning: 'Even if... [assumption]', sentences: '' }
+    { id: 'q1-6-1', point: '～（という）わけではない', meaning: 'It doesn\'t mean that...', sentences: '' },
+    { id: 'q1-6-2', point: 'Nからみると／すると／いうと', meaning: 'From the standpoint of N / Judging from N', sentences: '' },
+    { id: 'q1-6-3', point: '～（の）ではない（だろう）か', meaning: 'Isn\'t it the case that...? (polite suggestion)', sentences: '' },
+    { id: 'q1-6-4', point: '～がる', meaning: 'To show signs of... (third person feelings)', sentences: '' },
+    { id: 'q1-6-5', point: '～（よ）うとする／しない', meaning: 'Attempt to / Refuse to', sentences: '' },
+    { id: 'q1-6-6', point: '～まま', meaning: 'Remaining in a state', sentences: '' },
+    { id: 'q1-6-7', point: '～ようにいう', meaning: 'To tell (someone) to...', sentences: '' }
   ]
 };
 
